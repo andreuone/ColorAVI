@@ -182,6 +182,9 @@
     display: flex; min-height: 0;
     gap: calc(16px * var(--ui, 1)); padding: calc(6px * var(--ui, 1)) calc(16px * var(--ui, 1)) calc(16px * var(--ui, 1) + env(safe-area-inset-bottom));
   }
+  /* No browser gestures (scroll/zoom) over the board or the tray: on iPad they would cancel
+     the drag of a piece that is already on the board */
+  .pz-main { touch-action: none; }
   .pz-boardwrap { flex: 1; min-width: 0; display: grid; place-items: center; }
   #pzBoard {
     position: relative; display: grid; gap: 4px; padding: 8px; background: #fff; border-radius: 22px;
