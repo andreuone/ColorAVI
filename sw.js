@@ -1,7 +1,7 @@
 // Offline support: use the network when available (so updates show up right away),
 // fall back to the cached copy when offline or the network is too slow.
 // Bump CACHE when the file list changes so old copies are dropped.
-const CACHE = 'colorear-v12';
+const CACHE = 'colorear-v13';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 const TIMEOUT_MS = 3000;
 
