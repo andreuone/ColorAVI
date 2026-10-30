@@ -40,7 +40,9 @@
   button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
   svg { display: block; }
 
-  body[data-screen="home"] #paintScreen, body[data-screen="paint"] #home { display: none; }
+  body:not([data-screen="home"]) #home,
+  body:not([data-screen="paint"]) #paintScreen,
+  body:not([data-screen="puzzle"]) #puzzleScreen { display: none; }
 
   /* ---------- Home ---------- */
   #home {
@@ -54,10 +56,18 @@
   }
   .logo h1 span { color: #8c6cff; text-shadow: 0 5px 0 #d6cbff; }
   .logo p { margin: 6px 0 0; font-size: 20px; font-weight: 800; color: var(--muted); }
-  #grid {
+  .modes { display: flex; justify-content: center; gap: 14px; margin: 0 0 26px; }
+  .mode {
+    padding: 12px 26px; border-radius: 999px; font-size: 22px; font-weight: 900; color: var(--pink-dark);
+    background: #fff; box-shadow: 0 5px 0 var(--pink-line), 0 7px 14px #d93f8222;
+  }
+  .mode.on { background: var(--pink); color: #fff; box-shadow: 0 5px 0 var(--pink-dark), 0 7px 14px #d93f8233; }
+  #grid, #pzGrid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 22px;
     max-width: 1100px; margin: 0 auto;
   }
+  #grid[hidden], #pzGrid[hidden] { display: none; }
+  #pzGrid .dcard img { object-fit: cover; }
   .dcard {
     position: relative; background: var(--panel); border-radius: 26px; padding: 10px 10px 8px;
     box-shadow: 0 6px 0 var(--pink-line), 0 10px 22px #d93f8222; text-align: center;
@@ -150,6 +160,83 @@
   .crayon svg { width: 70px; height: 164px; transform: translateY(46px); transition: transform .18s cubic-bezier(.3,1.6,.5,1); pointer-events: none; }
   .crayon.on svg { transform: translateY(8px); }
 
+  /* ---------- Puzzle screen ---------- */
+  #puzzleScreen {
+    position: fixed; inset: 0;
+    display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr);
+    padding-top: env(safe-area-inset-top);
+  }
+  .chips {
+    display: flex; align-items: center; gap: 6px; background: #fff; border-radius: 999px; padding: 6px 6px 6px 16px;
+    box-shadow: 0 5px 0 var(--pink-line), 0 7px 14px #d93f8222;
+  }
+  .chips span { font-size: 26px; margin-right: 4px; }
+  .chip { min-width: 56px; height: 50px; padding: 0 10px; border-radius: 999px; font-size: 22px; font-weight: 900; background: var(--pink-soft); color: var(--pink-dark); }
+  .chip.on { background: var(--pink); color: #fff; }
+  .pill {
+    height: 60px; padding: 0 22px; border-radius: 999px; background: #fff; font-size: 20px; font-weight: 900; color: var(--pink-dark);
+    box-shadow: 0 5px 0 var(--pink-line), 0 7px 14px #d93f8222;
+  }
+  .pill.on { background: var(--sun); color: var(--ink); box-shadow: 0 5px 0 var(--sun-dark), 0 7px 14px #d93f8222; }
+  .pz-main {
+    display: flex; min-height: 0;
+    gap: calc(16px * var(--ui, 1)); padding: calc(6px * var(--ui, 1)) calc(16px * var(--ui, 1)) calc(16px * var(--ui, 1) + env(safe-area-inset-bottom));
+  }
+  .pz-boardwrap { flex: 1; min-width: 0; display: grid; place-items: center; }
+  #pzBoard {
+    position: relative; display: grid; gap: 4px; padding: 8px; background: #fff; border-radius: 22px;
+    box-shadow: 0 0 0 7px #ffd0e5, 0 10px 30px #d93f8222;
+  }
+  /* Guide: the picture, faint, under the empty spaces */
+  #pzBoard::before {
+    content: ""; position: absolute; inset: 8px; border-radius: 12px; pointer-events: none;
+    background: var(--pz-img) center / 100% 100% no-repeat; opacity: 0; transition: opacity .25s;
+  }
+  #pzBoard.guide::before { opacity: .18; }
+  #pzBoard.guide .pz-slot { background: transparent; }
+  .pz-slot .pz-piece.lifted { opacity: .25; }
+  .pz-side.over { box-shadow: 0 0 0 5px var(--pink), 0 10px 24px #d93f8222; }
+  .pz-slot { position: relative; border-radius: 10px; background: #fff4f9; border: 2px dashed #ffc6df; }
+  .pz-slot.filled { border: 0; }
+  .pz-slot.over { background: #ffe1ee; border-color: var(--pink); }
+  .pz-slot .pz-piece { position: absolute; inset: 0; width: 100%; height: 100%; box-shadow: none; border-radius: 6px; z-index: 1; }
+  .pz-side {
+    width: calc(340px * var(--ui, 1)); flex: none; display: flex; flex-direction: column; gap: 12px;
+    background: #fff; border-radius: 26px; padding: 12px; box-shadow: 0 6px 0 var(--pink-line), 0 10px 24px #d93f8222;
+  }
+  #pzModel { width: 100%; aspect-ratio: 4/3; border-radius: 16px; object-fit: cover; display: block; box-shadow: 0 0 0 4px #ffe1ee; }
+  #pzModel[hidden] { display: none; }
+  #pzTray { flex: 1; min-height: 0; display: grid; gap: 10px; align-content: start; justify-content: center; padding: 4px; }
+  .pz-piece {
+    border-radius: 8px; background-repeat: no-repeat; touch-action: none; cursor: grab;
+    box-shadow: 0 4px 0 #f0a3c6, 0 6px 10px #0002; transition: opacity .15s;
+  }
+  .pz-piece.sel { outline: 5px solid var(--pink); outline-offset: 2px; }
+  .pz-piece.lifted { opacity: .25; }
+  .pz-piece.gone { visibility: hidden; }
+  .pz-ghost {
+    position: fixed; z-index: 30; pointer-events: none; border-radius: 8px; background-repeat: no-repeat;
+    transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 14px 34px #0005;
+  }
+  .shake { animation: shake .45s; }
+  @keyframes shake { 20% { transform: translateX(-9px); } 40% { transform: translateX(9px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }
+  .pop { animation: pop .35s; }
+  @keyframes pop { 50% { transform: scale(1.08); } }
+  #pzWin { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: #4a2b3c55; }
+  #pzWin[hidden] { display: none; }
+  #confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .win-card {
+    position: relative; z-index: 1; background: #fff; border-radius: 34px; padding: 26px 34px; text-align: center;
+    box-shadow: 0 8px 0 var(--pink-line), 0 20px 50px #0003; animation: pop .5s;
+  }
+  .win-card .big { font-size: 80px; line-height: 1; }
+  .win-card h2 { margin: 6px 0 14px; font-size: 38px; font-weight: 900; color: var(--pink); }
+  .win-card .row { justify-content: center; }
+  #pzPrev {
+    display: block; margin: 0 auto; width: auto; height: auto; max-width: 100%; max-height: 42vh;
+    border-radius: 16px; touch-action: none; cursor: move;
+  }
+
   /* ---------- Dialogs ---------- */
   dialog {
     border: 0; border-radius: 30px; padding: 22px; max-width: min(580px, 94vw); width: 100%;
@@ -221,9 +308,53 @@
 
 <!-- ================= HOME ================= -->
 <section id="home">
-  <div class="logo"><h1>Color<span>AVI</span></h1><p>¿Qué quieres pintar hoy?</p></div>
+  <div class="logo"><h1>Color<span>AVI</span></h1><p id="tagline">¿Qué quieres pintar hoy?</p></div>
+  <div class="modes">
+    <button class="mode on" data-mode="color">🖍️ Colorear</button>
+    <button class="mode" data-mode="puzzle">🧩 Rompecabezas</button>
+  </div>
   <div id="grid">
     <button class="dcard add" id="addBtn"><big>＋</big>Subir dibujo</button>
+  </div>
+  <div id="pzGrid" hidden>
+    <button class="dcard add" id="pzAdd"><big>＋</big>Subir imagen</button>
+  </div>
+</section>
+
+<!-- ================= PUZZLE ================= -->
+<section id="puzzleScreen">
+  <div class="topbar">
+    <div class="group">
+      <button class="rbtn pink" id="pzHome" title="Mis rompecabezas">
+        <svg viewBox="0 0 64 64"><path d="M10 31 32 12l22 19" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 29v21a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3V29L32 16z" fill="#fff"/><rect x="27" y="38" width="10" height="15" rx="3" fill="#ff5fa2"/></svg>
+      </button>
+    </div>
+    <div class="chips" id="pzCount"><span>🧩</span></div>
+    <div class="group">
+      <button class="pill on" id="pzModelBtn">👀 Modelo</button>
+      <button class="pill" id="pzGuideBtn">✨ Guía</button>
+      <button class="rbtn" id="pzShuffle" title="Mezclar de nuevo">
+        <svg viewBox="0 0 64 64"><path d="M8 20h10c10 0 14 24 26 24h10M8 44h10c5 0 8-6 11-12m6-6c3-4 6-6 9-6h10" fill="none" stroke="#ff5fa2" stroke-width="6" stroke-linecap="round"/><path d="M48 12l8 8-8 8M48 36l8 8-8 8" fill="none" stroke="#ff5fa2" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="pz-main">
+    <div class="pz-boardwrap"><div id="pzBoard"></div></div>
+    <aside class="pz-side">
+      <img id="pzModel" alt="Modelo">
+      <div id="pzTray"></div>
+    </aside>
+  </div>
+  <div id="pzWin" hidden>
+    <canvas id="confetti"></canvas>
+    <div class="win-card">
+      <div class="big">🎉</div>
+      <h2>¡Lo lograste!</h2>
+      <div class="row">
+        <button class="btn primary" id="pzAgain">Otra vez</button>
+        <button class="btn" id="pzOther">Elegir otro</button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -359,7 +490,26 @@
   </div>
 </dialog>
 
+<dialog id="pzDlg">
+  <form method="dialog">
+    <h2>Nuevo rompecabezas</h2>
+    <canvas id="pzPrev"></canvas>
+    <div class="crop-bar"><span>✋ Arrastra el recuadro para elegir la parte (siempre 4:3)</span></div>
+    <label class="field">Tamaño del recuadro
+      <input type="range" id="pzZoom" min="30" max="100" value="100">
+    </label>
+    <label class="field">Nombre
+      <input type="text" id="pzName" maxlength="40">
+    </label>
+    <div class="row">
+      <button class="btn" value="cancel">Cancelar</button>
+      <button class="btn primary" value="ok">¡Crear!</button>
+    </div>
+  </form>
+</dialog>
+
 <input type="file" id="file" accept="image/*" multiple hidden>
+<input type="file" id="pzFile" accept="image/*" multiple hidden>
 <div id="drop">Suelta aquí tu imagen 🖼️</div>
 <div id="busy"></div>
 <img id="printImg" alt="">
@@ -398,20 +548,23 @@
   const MAX_SIZE = 2048;   // longest side of a drawing, in pixels
 
   // ---------- IndexedDB ----------
+  // Stores: 'dibujos' (coloring pages) and 'puzzles' (4:3 color images)
   let db, mem = null;   // mem: in-memory fallback when IndexedDB is unavailable
   const reqP = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-  const store = mode => db.transaction('dibujos', mode).objectStore('dibujos');
+  const store = (s, mode) => db.transaction(s, mode).objectStore(s);
   async function openDB() {
     try {
-      const r = indexedDB.open('colorear', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('dibujos', { keyPath: 'id' });
+      const r = indexedDB.open('colorear', 2);
+      r.onupgradeneeded = () => {
+        for (const s of ['dibujos', 'puzzles']) if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s, { keyPath: 'id' });
+      };
       db = await reqP(r);
-    } catch { mem = new Map(); }
+    } catch { mem = { dibujos: new Map(), puzzles: new Map() }; }
   }
-  const getAll = async () => mem ? [...mem.values()] : reqP(store('readonly').getAll());
-  const getRec = async id => mem ? mem.get(id) : reqP(store('readonly').get(id));
-  const putRec = async rec => mem ? mem.set(rec.id, rec) : reqP(store('readwrite').put(rec));
-  const delRec = async id => mem ? mem.delete(id) : reqP(store('readwrite').delete(id));
+  const getAll = async (s = 'dibujos') => mem ? [...mem[s].values()] : reqP(store(s, 'readonly').getAll());
+  const getRec = async (id, s = 'dibujos') => mem ? mem[s].get(id) : reqP(store(s, 'readonly').get(id));
+  const putRec = async (rec, s = 'dibujos') => mem ? mem[s].set(rec.id, rec) : reqP(store(s, 'readwrite').put(rec));
+  const delRec = async (id, s = 'dibujos') => mem ? mem[s].delete(id) : reqP(store(s, 'readwrite').delete(id));
 
   const toBlob = c => new Promise(r => c.toBlob(r, 'image/png'));
   const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
@@ -507,7 +660,18 @@
   function showScreen(name) {
     document.body.dataset.screen = name;
     if (name === 'paint') requestAnimationFrame(fitZoom);
+    if (name === 'puzzle') requestAnimationFrame(layoutPuzzle);
   }
+  function setHomeTab(mode) {
+    homeTab = mode;
+    lsSet('colorear.tab', mode);
+    $$('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+    $('#grid').hidden = mode !== 'color';
+    $('#pzGrid').hidden = mode !== 'puzzle';
+    $('#tagline').textContent = mode === 'color' ? '¿Qué quieres pintar hoy?' : '¿Qué rompecabezas armamos?';
+  }
+  let homeTab = 'color';
+  $$('.mode').forEach(b => b.onclick = () => setHomeTab(b.dataset.mode));
 
   async function openDrawing(id) {
     const rec = await getRec(id);
@@ -580,6 +744,7 @@
   async function goHome() {
     await save();
     await renderGallery();
+    setHomeTab('color');
     showScreen('home');
   }
   async function step(dir) {
@@ -1123,13 +1288,15 @@
   addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
   addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
   addEventListener('dragover', e => e.preventDefault());
+  // Dropped or pasted images go to puzzles when the puzzle side is open, otherwise to coloring
+  const wantsPuzzle = () => document.body.dataset.screen === 'puzzle' || (document.body.dataset.screen === 'home' && homeTab === 'puzzle');
   addEventListener('drop', e => {
     e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
-    enqueue(e.dataTransfer.files);
+    (wantsPuzzle() ? pzEnqueue : enqueue)(e.dataTransfer.files);
   });
   addEventListener('paste', e => {
     const files = [...e.clipboardData.items].filter(i => i.kind === 'file').map(i => i.getAsFile());
-    if (files.length) enqueue(files);
+    if (files.length) (wantsPuzzle() ? pzEnqueue : enqueue)(files);
   });
 
   // ---------- Sample drawing ----------
@@ -1159,6 +1326,412 @@
     await addDrawing(convert(img, 'line', 50, 1200), 'Mi casita (ejemplo)', false);
   }
 
+  // ================= PUZZLE =================
+  const PZ_GRIDS = { 4: [2, 2], 6: [3, 2], 9: [3, 3], 12: [4, 3], 20: [5, 4] };
+  const PZ_W = 1600, PZ_H = 1200;          // stored puzzle images are always 4:3
+  // board[t] = index of the piece sitting in slot t (or null); sel = { i, from: 'tray' | slot index }
+  const pz = { id: null, url: null, count: +(lsGet('colorear.pzCount') || 6), cols: 3, rows: 2, board: [], sel: null };
+  if (!PZ_GRIDS[pz.count]) pz.count = 6;
+  const pzBoard = $('#pzBoard'), pzTray = $('#pzTray');
+
+  async function renderPuzzles() {
+    const recs = (await getAll('puzzles')).sort((a, b) => a.created - b.created);
+    const grid = $('#pzGrid');
+    $$('#pzGrid .dcard[data-id]').forEach(c => c.remove());
+    for (const r of recs) {
+      const card = document.createElement('div');
+      card.className = 'dcard';
+      card.dataset.id = r.id;
+      card.innerHTML = `<img alt=""><span class="name"></span><button class="del" title="Borrar">✕</button>`;
+      card.querySelector('img').src = r.thumb;
+      card.querySelector('.name').textContent = r.name;
+      card.onclick = e => { if (!e.target.closest('.del')) openPuzzle(r.id); };
+      card.querySelector('.del').onclick = async () => {
+        if (!await ask(`¿Borrar el rompecabezas "${r.name}"?`)) return;
+        await delRec(r.id, 'puzzles');
+        const left = await renderPuzzles();
+        if (!left.length) await addSamplePuzzle();
+      };
+      grid.appendChild(card);
+    }
+    return recs;
+  }
+
+  async function addPuzzle(canvas43, name, open = true) {
+    const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 6);
+    const th = mk(320, 240);
+    th.getContext('2d').drawImage(canvas43, 0, 0, 320, 240);
+    const img = await new Promise(r => canvas43.toBlob(r, 'image/jpeg', .9));
+    await putRec({ id, name, created: Date.now(), img, thumb: th.toDataURL('image/jpeg', .85) }, 'puzzles');
+    await renderPuzzles();
+    if (open) await openPuzzle(id);
+  }
+
+  async function openPuzzle(id) {
+    const rec = await getRec(id, 'puzzles');
+    if (!rec) return;
+    if (pz.url) URL.revokeObjectURL(pz.url);
+    pz.id = id;
+    pz.url = URL.createObjectURL(rec.img);
+    $('#pzModel').src = pz.url;
+    pzBoard.style.setProperty('--pz-img', `url(${pz.url})`);
+    showModel(true);                       // the model always starts visible, the guide always off
+    showGuide(false);
+    showScreen('puzzle');
+    newGame();
+  }
+
+  function renderCountChips() {
+    const box = $('#pzCount');
+    $$('#pzCount .chip').forEach(c => c.remove());
+    for (const n of Object.keys(PZ_GRIDS)) {
+      const b = document.createElement('button');
+      b.className = 'chip' + (+n === pz.count ? ' on' : '');
+      b.textContent = n;
+      b.title = n + ' piezas';
+      b.onclick = () => { pz.count = +n; lsSet('colorear.pzCount', n); renderCountChips(); newGame(); };
+      box.appendChild(b);
+    }
+  }
+
+  function pieceBg(el, i) {
+    const c = i % pz.cols, r = Math.floor(i / pz.cols);
+    el.style.backgroundImage = `url(${pz.url})`;
+    el.style.backgroundSize = `${pz.cols * 100}% ${pz.rows * 100}%`;
+    el.style.backgroundPosition = `${c / (pz.cols - 1) * 100}% ${r / (pz.rows - 1) * 100}%`;
+  }
+
+  function newGame() {
+    [pz.cols, pz.rows] = PZ_GRIDS[pz.count];
+    const n = pz.cols * pz.rows;
+    pz.board = Array(n).fill(null); pz.sel = null;
+    $('#pzWin').hidden = true;
+    pzBoard.innerHTML = '';
+    pzBoard.style.gridTemplateColumns = `repeat(${pz.cols}, 1fr)`;
+    pzBoard.style.gridTemplateRows = `repeat(${pz.rows}, 1fr)`;
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement('div');
+      s.className = 'pz-slot'; s.dataset.i = i;
+      pzBoard.appendChild(s);
+    }
+    // shuffled tray (never already in order)
+    let order = [...Array(n).keys()];
+    do { for (let i = n - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [order[i], order[j]] = [order[j], order[i]]; } }
+    while (order.every((v, i) => v === i));
+    pzTray.innerHTML = '';
+    for (const i of order) {
+      const p = document.createElement('div');
+      p.className = 'pz-piece'; p.dataset.i = i;
+      pieceBg(p, i);
+      pzTray.appendChild(p);
+    }
+    layoutPuzzle();
+  }
+
+  // Board: biggest 4:3 that fits. Tray: column count that fits every piece without scrolling.
+  function layoutPuzzle() {
+    if (document.body.dataset.screen !== 'puzzle') return;
+    const wrap = $('.pz-boardwrap').getBoundingClientRect();
+    const bw = Math.min(wrap.width - 30, (wrap.height - 30) * 4 / 3);
+    pzBoard.style.width = bw + 'px';
+    pzBoard.style.height = bw * 3 / 4 + 'px';
+    const t = pzTray.getBoundingClientRect(), gap = 10, n = pz.cols * pz.rows;
+    const aspect = (4 / pz.cols) / (3 / pz.rows);   // piece width / height
+    let best = 0, bestCols = 1;
+    for (let c = 1; c <= 6; c++) {
+      let w = Math.min(160, (t.width - 8 - gap * (c - 1)) / c);
+      const rows = Math.ceil(n / c);
+      const hMax = (t.height - 8 - gap * (rows - 1)) / rows;
+      if (w / aspect > hMax) w = hMax * aspect;
+      if (w > best) { best = w; bestCols = c; }
+    }
+    best = Math.max(30, Math.floor(best));
+    pzTray.style.gridTemplateColumns = `repeat(${bestCols}, ${best}px)`;
+    $$('#pzTray .pz-piece').forEach(p => { p.style.width = best + 'px'; p.style.height = best / aspect + 'px'; });
+  }
+  new ResizeObserver(layoutPuzzle).observe($('.pz-main'));
+
+  function showModel(on) {
+    $('#pzModel').hidden = !on;
+    $('#pzModelBtn').classList.toggle('on', on);
+    layoutPuzzle();
+  }
+  $('#pzModelBtn').onclick = () => showModel($('#pzModel').hidden);
+  function showGuide(on) {
+    pzBoard.classList.toggle('guide', on);
+    $('#pzGuideBtn').classList.toggle('on', on);
+  }
+  $('#pzGuideBtn').onclick = () => showGuide(!pzBoard.classList.contains('guide'));
+  $('#pzShuffle').onclick = newGame;
+  $('#pzAgain').onclick = newGame;
+  const pzGoHome = async () => { await renderPuzzles(); setHomeTab('puzzle'); showScreen('home'); };
+  $('#pzHome').onclick = pzGoHome;
+  $('#pzOther').onclick = pzGoHome;
+
+  // ----- sounds (generated, so they work offline) -----
+  let actx = null;
+  function tones(freqs, dur = .1, type = 'sine') {
+    try {
+      actx ||= new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = actx.currentTime;
+      freqs.forEach((f, k) => {
+        const o = actx.createOscillator(), g = actx.createGain(), t = t0 + k * dur;
+        o.type = type; o.frequency.value = f;
+        g.gain.setValueAtTime(.0001, t);
+        g.gain.exponentialRampToValueAtTime(.22, t + .02);
+        g.gain.exponentialRampToValueAtTime(.0001, t + dur * 1.8);
+        o.connect(g).connect(actx.destination);
+        o.start(t); o.stop(t + dur * 2);
+      });
+    } catch {}
+  }
+
+  // ----- placing pieces (any piece can go anywhere; it's a win only when every piece is home) -----
+  const slotEls = () => [...pzBoard.children];
+  const trayEl = i => pzTray.querySelector(`.pz-piece[data-i="${i}"]`);
+  // Element that shows a piece coming from the tray or from a slot
+  const srcEl = (i, from) => from === 'tray' ? trayEl(i) : slotEls()[from]?.querySelector('.pz-piece');
+
+  function renderBoard(popSlot = -1) {
+    slotEls().forEach((s, t) => {
+      const i = pz.board[t];
+      s.classList.toggle('filled', i != null);
+      s.classList.remove('pop');
+      s.querySelector('.pz-piece')?.remove();
+      if (i == null) return;
+      const p = document.createElement('div');
+      p.className = 'pz-piece'; p.dataset.i = i;
+      pieceBg(p, i);
+      s.appendChild(p);
+      if (t === popSlot) { void s.offsetWidth; s.classList.add('pop'); }
+    });
+    $$('#pzTray .pz-piece').forEach(p => p.classList.toggle('gone', pz.board.includes(+p.dataset.i)));
+    if (pz.sel) srcEl(pz.sel.i, pz.sel.from)?.classList.add('sel');
+  }
+  function selectPiece(sel) {
+    $$('#puzzleScreen .pz-piece.sel').forEach(p => p.classList.remove('sel'));
+    pz.sel = sel;
+    if (sel) srcEl(sel.i, sel.from)?.classList.add('sel');
+  }
+  // Put piece i (coming from the tray or from slot `from`) into slot t; whatever was there goes back to the tray
+  function placeAt(i, from, t) {
+    if (from === t) return;
+    if (from !== 'tray') pz.board[from] = null;
+    pz.board[t] = i;
+    pz.sel = null;
+    renderBoard(t);
+    const n = pz.board.length;
+    if (pz.board.every((v, k) => v === k)) { tones([523, 659, 784, 1047], .14); setTimeout(win, 450); return; }
+    if (pz.board.every(v => v != null)) {           // full but with mistakes: wiggle the wrong ones
+      tones([300, 240], .14, 'triangle');
+      slotEls().forEach((s, k) => { if (pz.board[k] !== k) { const p = s.querySelector('.pz-piece'); p.classList.remove('shake'); void p.offsetWidth; p.classList.add('shake'); } });
+      return;
+    }
+    tones(i === t ? [660, 990] : [520], .08);
+  }
+  function backToTray(from) {
+    if (from === 'tray') return;
+    pz.board[from] = null;
+    pz.sel = null;
+    renderBoard();
+    tones([440, 330], .07);
+  }
+  const slotAt = (x, y) => document.elementFromPoint(x, y)?.closest?.('.pz-slot');
+  const overTray = (x, y) => !!document.elementFromPoint(x, y)?.closest?.('.pz-side');
+
+  // A press on a piece (tray or board) or on an empty slot. Moving turns it into a drag;
+  // a plain tap selects a piece, or drops the selected piece where you tap.
+  let pdrag = null;
+  function pressStart(e, i, from, slotIdx) {
+    e.preventDefault();
+    pdrag = { i, from, slotIdx, x: e.clientX, y: e.clientY, ghost: null, over: null, overTray: false };
+  }
+  pzTray.addEventListener('pointerdown', e => {
+    const p = e.target.closest('.pz-piece');
+    if (p && !p.classList.contains('gone')) pressStart(e, +p.dataset.i, 'tray');
+    else pressStart(e, null, null);                                      // tap on the tray background
+  });
+  pzBoard.addEventListener('pointerdown', e => {
+    const s = e.target.closest('.pz-slot');
+    if (!s) return;
+    const t = slotEls().indexOf(s);
+    pressStart(e, pz.board[t], pz.board[t] == null ? null : t, t);
+  });
+  addEventListener('pointermove', e => {
+    if (!pdrag || pdrag.i == null) return;
+    if (!pdrag.ghost) {
+      if (Math.hypot(e.clientX - pdrag.x, e.clientY - pdrag.y) < 8) return;
+      const s = pzBoard.querySelector('.pz-slot').getBoundingClientRect();
+      const g = pdrag.ghost = document.createElement('div');
+      g.className = 'pz-ghost';
+      pieceBg(g, pdrag.i);
+      g.style.width = s.width + 'px'; g.style.height = s.height + 'px';
+      document.body.appendChild(g);
+      srcEl(pdrag.i, pdrag.from)?.classList.add('lifted');
+      selectPiece(null);
+    }
+    pdrag.ghost.style.left = e.clientX + 'px';
+    pdrag.ghost.style.top = e.clientY + 'px';
+    const over = slotAt(e.clientX, e.clientY);
+    if (over !== pdrag.over) { pdrag.over?.classList.remove('over'); over?.classList.add('over'); pdrag.over = over; }
+    const ot = pdrag.from !== 'tray' && overTray(e.clientX, e.clientY);
+    if (ot !== pdrag.overTray) { $('.pz-side').classList.toggle('over', ot); pdrag.overTray = ot; }
+  });
+  const pieceUp = e => {
+    if (!pdrag) return;
+    const d = pdrag; pdrag = null;
+    if (!d.ghost) {                                                       // ---- tap
+      if (e.type !== 'pointerup') return;
+      const sel = pz.sel;
+      if (sel && d.slotIdx != null && !(sel.from === d.slotIdx)) placeAt(sel.i, sel.from, d.slotIdx);
+      else if (sel && d.i == null && d.slotIdx == null) backToTray(sel.from);   // tapped the tray background
+      else if (d.i != null) selectPiece(sel && sel.i === d.i ? null : { i: d.i, from: d.from });
+      return;
+    }
+    d.ghost.remove();                                                     // ---- drop
+    srcEl(d.i, d.from)?.classList.remove('lifted');
+    d.over?.classList.remove('over');
+    $('.pz-side').classList.remove('over');
+    if (e.type !== 'pointerup') return;
+    const slot = slotAt(e.clientX, e.clientY);
+    if (slot) placeAt(d.i, d.from, slotEls().indexOf(slot));
+    else if (overTray(e.clientX, e.clientY)) backToTray(d.from);
+  };
+  addEventListener('pointerup', pieceUp);
+  addEventListener('pointercancel', pieceUp);
+
+  // ----- celebration -----
+  function win() {
+    $('#pzWin').hidden = false;
+    const c = $('#confetti'), x = c.getContext('2d');
+    c.width = innerWidth; c.height = innerHeight;
+    const bits = Array.from({ length: 160 }, () => ({
+      x: Math.random() * c.width, y: -20 - Math.random() * c.height * .6,
+      vx: (Math.random() - .5) * 3, vy: 2 + Math.random() * 4, r: 5 + Math.random() * 7,
+      a: Math.random() * 6, va: (Math.random() - .5) * .3, col: CONFETTI[(Math.random() * CONFETTI.length) | 0],
+    }));
+    const t0 = performance.now();
+    (function frame(t) {
+      x.clearRect(0, 0, c.width, c.height);
+      for (const b of bits) {
+        b.x += b.vx; b.y += b.vy; b.a += b.va;
+        x.save(); x.translate(b.x, b.y); x.rotate(b.a); x.fillStyle = b.col; x.fillRect(-b.r, -b.r / 2, b.r * 2, b.r); x.restore();
+      }
+      if (t - t0 < 4000 && !$('#pzWin').hidden) requestAnimationFrame(frame);
+      else x.clearRect(0, 0, c.width, c.height);
+    })(t0);
+  }
+
+  // ----- upload with a fixed 4:3 crop -----
+  const pzDlg = $('#pzDlg'), pzPrev = $('#pzPrev');
+  let pzQueue = [], pzCur = null;
+  function pzCropFromZoom() {
+    const { src } = pzCur, z = +$('#pzZoom').value / 100;
+    const maxW = Math.min(src.width, src.height * 4 / 3);
+    const w = maxW * z, h = w * 3 / 4;
+    const cx = pzCur.crop ? pzCur.crop.x + pzCur.crop.w / 2 : src.width / 2;
+    const cy = pzCur.crop ? pzCur.crop.y + pzCur.crop.h / 2 : src.height / 2;
+    pzCur.crop = { w, h, x: cx - w / 2, y: cy - h / 2 };
+    pzClamp();
+  }
+  function pzClamp() {
+    const { src, crop } = pzCur;
+    crop.x = Math.max(0, Math.min(src.width - crop.w, crop.x));
+    crop.y = Math.max(0, Math.min(src.height - crop.h, crop.y));
+  }
+  function pzDraw() {
+    const { small, src, crop } = pzCur, k = small.width / src.width;
+    pzPrev.width = small.width; pzPrev.height = small.height;
+    const x = pzPrev.getContext('2d');
+    x.drawImage(small, 0, 0);
+    const rx = crop.x * k, ry = crop.y * k, rw = crop.w * k, rh = crop.h * k;
+    x.fillStyle = 'rgba(74,43,60,.55)';
+    x.beginPath(); x.rect(0, 0, pzPrev.width, pzPrev.height); x.rect(rx, ry, rw, rh); x.fill('evenodd');
+    x.strokeStyle = '#ff5fa2'; x.lineWidth = 5; x.strokeRect(rx, ry, rw, rh);
+  }
+  let pzMove = null;
+  pzPrev.addEventListener('pointerdown', e => {
+    if (!pzCur) return;
+    e.preventDefault();
+    try { pzPrev.setPointerCapture(e.pointerId); } catch {}
+    pzMove = { x: e.clientX, y: e.clientY, cx: pzCur.crop.x, cy: pzCur.crop.y };
+  });
+  pzPrev.addEventListener('pointermove', e => {
+    if (!pzMove) return;
+    const k = pzCur.src.width / pzPrev.getBoundingClientRect().width;
+    pzCur.crop.x = pzMove.cx + (e.clientX - pzMove.x) * k;
+    pzCur.crop.y = pzMove.cy + (e.clientY - pzMove.y) * k;
+    pzClamp(); pzDraw();
+  });
+  pzPrev.addEventListener('pointerup', () => pzMove = null);
+  pzPrev.addEventListener('pointercancel', () => pzMove = null);
+  $('#pzZoom').oninput = () => { pzCropFromZoom(); pzDraw(); };
+
+  async function pzNext() {
+    const file = pzQueue.shift();
+    if (!file) return;
+    busy('Abriendo imagen…');
+    await nextFrame();
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await loadImg(url);
+      await img.decode?.().catch(() => {});
+      const src = shrink(img, 3200);
+      URL.revokeObjectURL(url);
+      pzCur = { src, small: shrink(src, 1000), crop: null };
+      $('#pzZoom').value = 100;
+      pzCropFromZoom(); pzDraw();
+      $('#pzName').value = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').slice(0, 40) || 'Mi rompecabezas';
+      busy();
+      pzDlg.showModal();
+    } catch {
+      busy();
+      alert('No pude abrir esa imagen 😕');
+      pzNext();
+    }
+  }
+  function pzEnqueue(files) {
+    pzQueue.push(...[...files].filter(f => f.type.startsWith('image/')));
+    if (!pzDlg.open) pzNext();
+  }
+  pzDlg.addEventListener('close', async () => {
+    if (pzDlg.returnValue === 'ok' && pzCur) {
+      busy('Preparando tu rompecabezas…');
+      await nextFrame();
+      try {
+        const { src, crop } = pzCur, c = mk(PZ_W, PZ_H);
+        c.getContext('2d').drawImage(src, crop.x, crop.y, crop.w, crop.h, 0, 0, PZ_W, PZ_H);
+        await addPuzzle(c, $('#pzName').value.trim() || 'Mi rompecabezas');
+      } finally { busy(); }
+    }
+    pzCur = null;
+    pzNext();
+  });
+  $('#pzAdd').onclick = () => $('#pzFile').click();
+  $('#pzFile').onchange = e => { pzEnqueue(e.target.files); e.target.value = ''; };
+
+  async function addSamplePuzzle() {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+      <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ec8ff"/><stop offset="1" stop-color="#d9f0ff"/></linearGradient></defs>
+      <rect width="1200" height="900" fill="url(#s)"/>
+      ${['#ff5a5a', '#ffa53a', '#ffe14d', '#5ed67a', '#4aa8ff', '#a46bff'].map((c, i) => `<path d="M150 640 A450 450 0 0 1 1050 640" fill="none" stroke="${c}" stroke-width="34" transform="translate(0 ${i * 34}) scale(1 ${1 - i * .03})"/>`).join('')}
+      <circle cx="1030" cy="150" r="90" fill="#ffd23c"/>
+      <g fill="#fff"><circle cx="230" cy="170" r="55"/><circle cx="300" cy="140" r="70"/><circle cx="370" cy="175" r="50"/></g>
+      <path d="M0 700 Q300 600 600 690 T1200 660 V900 H0z" fill="#69cf5c"/>
+      <path d="M0 780 Q400 720 700 790 T1200 770 V900 H0z" fill="#4bb84a"/>
+      <rect x="430" y="470" width="300" height="250" fill="#ff7eb6"/>
+      <path d="M400 480 L580 330 L760 480z" fill="#a46bff"/>
+      <rect x="540" y="580" width="80" height="140" rx="10" fill="#ffd23c"/>
+      <rect x="460" y="520" width="60" height="60" fill="#bfe6ff" stroke="#fff" stroke-width="8"/>
+      <rect x="640" y="520" width="60" height="60" fill="#bfe6ff" stroke="#fff" stroke-width="8"/>
+      ${[[180, 760, '#ff5a5a'], [290, 800, '#ffe14d'], [900, 770, '#4aa8ff'], [1010, 810, '#ff7eb6']].map(([x, y, c]) => `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + 70}" stroke="#2f8f3a" stroke-width="8"/><circle cx="${x}" cy="${y}" r="30" fill="${c}"/><circle cx="${x}" cy="${y}" r="12" fill="#fff6a8"/>`).join('')}
+    </svg>`;
+    const img = await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+    const c = mk(PZ_W, PZ_H);
+    c.getContext('2d').drawImage(img, 0, 0, PZ_W, PZ_H);
+    await addPuzzle(c, 'Arcoíris (ejemplo)', false);
+  }
+
   // ---------- UI scale: bars are designed for a 1080×810 iPad screen ----------
   let uiScale = 1;
   function applyUiScale() {
@@ -1176,10 +1749,13 @@
 
   (async () => {
     state.stayIn = lsGet('colorear.stayIn') !== '0';
-    showLock(); showSize(); renderCrayons(); setColor(state.color);
+    showLock(); showSize(); renderCrayons(); setColor(state.color); renderCountChips();
+    setHomeTab(lsGet('colorear.tab') === 'puzzle' ? 'puzzle' : 'color');
     await openDB();
     const recs = await renderGallery();
     if (!recs.length) await addSample();
+    const pzs = await renderPuzzles();
+    if (!pzs.length) await addSamplePuzzle();
   })();
 })();
 </script>
