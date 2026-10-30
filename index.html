@@ -473,6 +473,7 @@
       <label><input type="radio" name="mode" value="line" checked>✏️ Dibujo para colorear</label>
       <label><input type="radio" name="mode" value="photo">📷 Foto → dibujo</label>
       <label><input type="radio" name="mode" value="sketch">✨ Foto → boceto</label>
+      <label><input type="radio" name="mode" value="illus">🎨 Ilustración → líneas</label>
     </div>
     <label class="field">Intensidad de las líneas
       <input type="range" id="thr" min="0" max="100" value="50">
@@ -633,11 +634,83 @@
 
   // Returns a canvas where lines are dark with alpha and everything else is transparent.
   // crop (optional) is a rectangle in source pixels.
+  // Grey-level dilation (max) or erosion (min) with a (2r+1)² square, done as two 1-D passes
+  function morph(a, w, h, r, isMax) {
+    const t = new Float32Array(a.length), o = new Float32Array(a.length);
+    for (let y = 0; y < h; y++) {
+      const row = y * w;
+      for (let x = 0; x < w; x++) {
+        let v = a[row + x];
+        const x1 = Math.min(w - 1, x + r);
+        for (let k = Math.max(0, x - r); k <= x1; k++) { const u = a[row + k]; if (isMax ? u > v : u < v) v = u; }
+        t[row + x] = v;
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        let v = t[y * w + x];
+        const y1 = Math.min(h - 1, y + r);
+        for (let k = Math.max(0, y - r); k <= y1; k++) { const u = t[k * w + x]; if (isMax ? u > v : u < v) v = u; }
+        o[y * w + x] = v;
+      }
+    }
+    return o;
+  }
+
+  // Colour illustration with black outlines -> clean coloring lines (w×h output).
+  // Keeps thin dark outlines (black top-hat: big dark areas like a black dog are NOT filled)
+  // and adds a line wherever the flat colour changes, so every region is closed.
+  // Works on a ≤900 px copy for speed, then scales up and re-sharpens the lines.
+  function illusLines(img, cr, w, h, t) {
+    const s = Math.min(1, 900 / Math.max(w, h));
+    const sw = Math.max(1, Math.round(w * s)), sh = Math.max(1, Math.round(h * s)), n = sw * sh;
+    const sc = mk(sw, sh), sx = sc.getContext('2d', { willReadFrequently: true });
+    sx.fillStyle = '#fff'; sx.fillRect(0, 0, sw, sh);
+    sx.imageSmoothingQuality = 'high';
+    sx.drawImage(img, cr.x, cr.y, cr.w, cr.h, 0, 0, sw, sh);
+    const p = sx.getImageData(0, 0, sw, sh).data;
+    const R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n), g = new Float32Array(n);
+    for (let i = 0; i < n; i++) { R[i] = p[i*4]; G[i] = p[i*4+1]; B[i] = p[i*4+2]; g[i] = .299 * R[i] + .587 * G[i] + .114 * B[i]; }
+    // 1) thin dark outlines: closing(g) - g is big only on dark strokes narrower than the window
+    const r = Math.max(2, Math.round(Math.max(sw, sh) / 90));
+    const closed = morph(morph(g, sw, sh, r, true), sw, sh, r, false);
+    const thTop = 50 - t * .35;                     // slider: lower threshold = more lines
+    // 2) colour borders between flat regions (on a lightly smoothed copy to ignore anti-aliasing)
+    for (const ch of [R, G, B]) boxBlur(ch, sw, sh, 1);
+    const T = 62 - t * .5, edge = new Uint8Array(n);
+    for (let y = 0; y < sh - 1; y++) for (let x = 0; x < sw - 1; x++) {
+      const i = y * sw + x, a = i + 1, b = i + sw;
+      const d = Math.max(Math.abs(R[i] - R[a]), Math.abs(G[i] - G[a]), Math.abs(B[i] - B[a]),
+                         Math.abs(R[i] - R[b]), Math.abs(G[i] - G[b]), Math.abs(B[i] - B[b]));
+      if (d > T) edge[i] = 1;
+    }
+    const sm = sx.createImageData(sw, sh), o = sm.data;
+    for (let i = 0; i < n; i++) {
+      const top = closed[i] - g[i];
+      const a = edge[i] ? 255 : Math.max(0, Math.min(255, (top - thTop) / (thTop * .6 + 1) * 255));
+      o[i*4] = 34; o[i*4+1] = 30; o[i*4+2] = 46; o[i*4+3] = a;
+    }
+    removeSpecks(o, sw, sh);
+    sx.putImageData(sm, 0, 0);
+    // scale up to the drawing size and re-sharpen the soft edges
+    const c = mk(w, h), x = c.getContext('2d', { willReadFrequently: true });
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(sc, 0, 0, w, h);
+    const big = x.getImageData(0, 0, w, h), q = big.data;
+    for (let i = 3; i < q.length; i += 4) q[i] = Math.max(0, Math.min(255, (q[i] - 70) * 2.5));
+    x.putImageData(big, 0, 0);
+    return c;
+  }
+
   function convert(img, mode, t, max, crop) {
     const cr = crop || { x: 0, y: 0, w: img.naturalWidth || img.width, h: img.naturalHeight || img.height };
-    const k = Math.min(1, max / Math.max(cr.w, cr.h));
+    // shrink big images; small ones are enlarged (up to 1200 px) so the lines come out smooth
+    const long = Math.max(cr.w, cr.h);
+    const k = long > max ? max / long : (max >= 1200 && long < 1200 ? 1200 / long : 1);
     const w = Math.max(1, Math.round(cr.w * k)), h = Math.max(1, Math.round(cr.h * k));
+    if (mode === 'illus') return illusLines(img, cr, w, h, t);
     const c = mk(w, h), x = c.getContext('2d', { willReadFrequently: true });
+    x.imageSmoothingQuality = 'high';
     x.fillStyle = '#fff'; x.fillRect(0, 0, w, h);
     x.drawImage(img, cr.x, cr.y, cr.w, cr.h, 0, 0, w, h);
     const d = x.getImageData(0, 0, w, h), p = d.data, n = w * h;
