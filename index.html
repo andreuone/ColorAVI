@@ -56,6 +56,22 @@
   }
   .logo h1 span { color: #8c6cff; text-shadow: 0 5px 0 #d6cbff; }
   .logo p { margin: 6px 0 0; font-size: 20px; font-weight: 800; color: var(--muted); }
+  .gear { position: absolute; top: max(18px, env(safe-area-inset-top)); right: 20px; width: 50px; height: 50px; }
+  .gear svg { width: 32px; height: 32px; }
+  .note { margin: 0 0 8px; color: var(--muted); font-weight: 700; font-size: 15px; line-height: 1.35; }
+  .note a { color: var(--pink-dark); }
+  .field select { font: inherit; font-weight: 700; padding: 10px 14px; border-radius: 16px; border: 3px solid var(--pink-line); background: #fff; }
+  #apiMsg { min-height: 22px; margin: 10px 0 0; font-weight: 800; }
+  #aiStatus { color: var(--pink-dark); }
+  #gateDlg { max-width: min(420px, 94vw); text-align: center; }
+  .gate-q { font-size: 46px; font-weight: 900; color: var(--pink); margin: 6px 0 10px; }
+  .gate-a {
+    font: inherit; font-size: 34px; font-weight: 900; text-align: center; width: 160px;
+    padding: 8px; border-radius: 18px; border: 3px solid var(--pink-line);
+  }
+  #gateMsg { min-height: 22px; margin: 10px 0 0; font-weight: 800; color: var(--pink-dark); }
+  #gateDlg .row { justify-content: center; }
+  .seg label[hidden] { display: none; }
   .modes { display: flex; justify-content: center; gap: 14px; margin: 0 0 26px; }
   .mode {
     padding: 12px 26px; border-radius: 999px; font-size: 22px; font-weight: 900; color: var(--pink-dark);
@@ -257,13 +273,14 @@
     background: #fff; border: 3px solid var(--pink-line); border-radius: 16px; touch-action: none; cursor: crosshair;
   }
   .crop-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; min-height: 40px; font-size: 15px; color: var(--muted); font-weight: 800; }
-  .crop-bar .btn { padding: 6px 14px; font-size: 14px; }
+  .crop-bar .btn { padding: 6px 14px; font-size: 14px; white-space: nowrap; }
+  .crop-btns { display: flex; gap: 8px; }
   .seg { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
   .seg label { flex: 1; padding: 10px; border-radius: 16px; background: var(--pink-soft); font-weight: 900; cursor: pointer; text-align: center; min-width: 150px; }
   .seg input { display: none; }
   .seg label:has(input:checked) { background: var(--pink); color: #fff; }
   .field { display: grid; gap: 6px; margin: 10px 0; font-weight: 900; font-size: 15px; }
-  .field input[type=text] { font: inherit; font-weight: 700; padding: 10px 14px; border-radius: 16px; border: 3px solid var(--pink-line); }
+  .field input[type=text], .field input[type=password] { font: inherit; font-weight: 700; padding: 10px 14px; border-radius: 16px; border: 3px solid var(--pink-line); }
   .field input[type=range] { accent-color: var(--pink); }
 
   #colorDlg { max-width: min(640px, 96vw); }
@@ -308,6 +325,9 @@
 
 <!-- ================= HOME ================= -->
 <section id="home">
+  <button class="rbtn gear" id="gearBtn" title="Ajustes">
+    <svg viewBox="0 0 64 64"><path d="M27 6h10l2 7 6 3 7-3 5 8-5 6v6l5 6-5 8-7-3-6 3-2 7H27l-2-7-6-3-7 3-5-8 5-6v-6l-5-6 5-8 7 3 6-3z" fill="#c9b6c1"/><circle cx="32" cy="32" r="9" fill="#fff"/></svg>
+  </button>
   <div class="logo"><h1>Color<span>AVI</span></h1><p id="tagline">¿Qué quieres pintar hoy?</p></div>
   <div class="modes">
     <button class="mode on" data-mode="color">🖍️ Colorear</button>
@@ -449,11 +469,17 @@
     <canvas id="prev"></canvas>
     <div class="crop-bar">
       <span id="cropHint">✂️ Arrastra sobre la imagen para recortar</span>
-      <button type="button" class="btn" id="cropReset" hidden>Usar toda la imagen</button>
+      <span id="aiStatus" hidden></span>
+      <span class="crop-btns">
+        <button type="button" class="btn" id="cropReset" hidden>Usar toda la imagen</button>
+        <button type="button" class="btn" id="rotateBtn" title="Girar la imagen">↻ Girar</button>
+      </span>
     </div>
     <div class="seg">
       <label><input type="radio" name="mode" value="line" checked>✏️ Dibujo para colorear</label>
       <label><input type="radio" name="mode" value="photo">📷 Foto → dibujo</label>
+      <label><input type="radio" name="mode" value="sketch">✨ Foto → boceto</label>
+      <label id="aiOption" hidden><input type="radio" name="mode" value="ai">🤖 IA → para colorear</label>
     </div>
     <label class="field">Intensidad de las líneas
       <input type="range" id="thr" min="0" max="100" value="50">
@@ -463,7 +489,46 @@
     </label>
     <div class="row">
       <button class="btn" value="cancel">Cancelar</button>
-      <button class="btn primary" value="ok">¡Agregar!</button>
+      <button class="btn primary" value="ok" id="addOk">¡Agregar!</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="setDlg">
+  <form method="dialog">
+    <h2>⚙️ Ajustes</h2>
+    <p class="note">Para el modo <b>🤖 IA → para colorear</b> pega tu clave de la API de Gemini.
+      Se crea en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>
+      (necesita facturación activada). La clave se guarda <b>solo en este dispositivo</b>.</p>
+    <label class="field">Clave API de Gemini
+      <input type="password" id="apiKey" autocomplete="off" spellcheck="false" placeholder="AIza…">
+    </label>
+    <label class="field">Modelo
+      <select id="apiModel">
+        <option value="gemini-nano-banana-2.1">Nano Banana 2.1 (recomendado)</option>
+        <option value="gemini-3.1-flash-lite-image">Nano Banana 2 Lite (más rápido y barato)</option>
+        <option value="gemini-3-pro-image">Nano Banana Pro (mejor calidad, más caro)</option>
+      </select>
+    </label>
+    <p id="apiMsg"></p>
+    <div class="row">
+      <button type="button" class="btn" id="apiClear">Borrar clave</button>
+      <button type="button" class="btn" id="apiTest">Probar clave</button>
+      <button class="btn primary" value="ok">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="gateDlg">
+  <form method="dialog" id="gateForm">
+    <h2>🔒 Solo para adultos</h2>
+    <p class="note">La IA envía la foto a Google y tiene costo. Para confirmar, resuelve:</p>
+    <div class="gate-q" id="gateQ"></div>
+    <input type="number" inputmode="numeric" id="gateA" class="gate-a" autocomplete="off" aria-label="Respuesta">
+    <p id="gateMsg"></p>
+    <div class="row">
+      <button type="button" class="btn" id="gateNo">Cancelar</button>
+      <button class="btn primary" value="yes">Generar con IA</button>
     </div>
   </form>
 </dialog>
@@ -494,7 +559,10 @@
   <form method="dialog">
     <h2>Nuevo rompecabezas</h2>
     <canvas id="pzPrev"></canvas>
-    <div class="crop-bar"><span>✋ Arrastra el recuadro para elegir la parte (siempre 4:3)</span></div>
+    <div class="crop-bar">
+      <span>✋ Arrastra el recuadro para elegir la parte (siempre 4:3)</span>
+      <button type="button" class="btn" id="pzRotate" title="Girar la imagen">↻ Girar</button>
+    </div>
     <label class="field">Tamaño del recuadro
       <input type="range" id="pzZoom" min="30" max="100" value="100">
     </label>
@@ -592,6 +660,23 @@
     }
   }
 
+  // Drop tiny specks (photo grain): connected bits smaller than ~0.005% of the image
+  function removeSpecks(o, w, h) {
+    const n = w * h, minPx = Math.max(12, n / 20000), seen = new Uint8Array(n), stack = new Int32Array(n), comp = [];
+    for (let s = 0; s < n; s++) {
+      if (seen[s] || !o[s * 4 + 3]) continue;
+      let sp = 0; stack[sp++] = s; seen[s] = 1; comp.length = 0;
+      while (sp) {
+        const i = stack[--sp], cx = i % w;
+        comp.push(i);
+        for (const j of [cx > 0 ? i - 1 : -1, cx < w - 1 ? i + 1 : -1, i - w, i + w]) {
+          if (j >= 0 && j < n && !seen[j] && o[j * 4 + 3]) { seen[j] = 1; stack[sp++] = j; }
+        }
+      }
+      if (comp.length < minPx) for (const i of comp) o[i * 4 + 3] = 0;
+    }
+  }
+
   // Returns a canvas where lines are dark with alpha and everything else is transparent.
   // crop (optional) is a rectangle in source pixels.
   function convert(img, mode, t, max, crop) {
@@ -625,20 +710,26 @@
       while (b > 0 && (want -= hist[b]) > 0) b--;
       const thr = Math.max(4, b / scale);
       for (let i = 0; i < n; i++) o[i * 4 + 3] = Math.max(0, Math.min(255, (M[i] - thr) / (thr * .4 + 2) * 255));
-      // Drop tiny specks (photo grain): connected bits smaller than ~0.005% of the image
-      const minPx = Math.max(12, n / 20000), seen = new Uint8Array(n), stack = new Int32Array(n), comp = [];
-      for (let s = 0; s < n; s++) {
-        if (seen[s] || !o[s * 4 + 3]) continue;
-        let sp = 0; stack[sp++] = s; seen[s] = 1; comp.length = 0;
-        while (sp) {
-          const i = stack[--sp], cx = i % w;
-          comp.push(i);
-          for (const j of [cx > 0 ? i - 1 : -1, cx < w - 1 ? i + 1 : -1, i - w, i + w]) {
-            if (j >= 0 && j < n && !seen[j] && o[j * 4 + 3]) { seen[j] = 1; stack[sp++] = j; }
-          }
-        }
-        if (comp.length < minPx) for (const i of comp) o[i * 4 + 3] = 0;
-      }
+      removeSpecks(o, w, h);
+    } else if (mode === 'sketch') {
+      // Pencil-sketch lines (difference of two blurs): one line per edge, on its dark side,
+      // instead of the double outlines edge detection gives
+      boxBlur(g, w, h, Math.max(1, Math.round(w / 900)));        // calm down photo grain first
+      const wide = Float32Array.from(g);
+      const r1 = Math.max(1, Math.round(w / 800)), r2 = Math.max(r1 + 2, Math.round(w / 220));
+      boxBlur(g, w, h, r1); boxBlur(g, w, h, r1);
+      boxBlur(wide, w, h, r2); boxBlur(wide, w, h, r2);
+      const D = new Float32Array(n);                              // > 0 where darker than its surroundings
+      let top = 0;
+      for (let i = 0; i < n; i++) { const v = D[i] = wide[i] - g[i]; if (v > top) top = v; }
+      // Auto threshold: the slider picks how much of the picture becomes line (3%–15%)
+      const BINS = 2048, hist = new Uint32Array(BINS), scale = (BINS - 1) / (top || 1);
+      for (let i = 0; i < n; i++) if (D[i] > 0) hist[(D[i] * scale) | 0]++;
+      let want = n * (.03 + t / 100 * .12), b = BINS - 1;
+      while (b > 0 && (want -= hist[b]) > 0) b--;
+      const thr = Math.max(2, b / scale);
+      for (let i = 0; i < n; i++) o[i * 4 + 3] = Math.max(0, Math.min(255, (D[i] - thr) / (thr * .5 + 1) * 255));
+      removeSpecks(o, w, h);
     } else {
       const hi = 150 + t, lo = hi - 110;
       for (let i = 0; i < n; i++) o[i * 4 + 3] = Math.max(0, Math.min(255, (hi - g[i]) / (hi - lo) * 255));
@@ -659,6 +750,7 @@
 
   function showScreen(name) {
     document.body.dataset.screen = name;
+    if (name !== 'puzzle' && typeof clearDrag === 'function') clearDrag();
     if (name === 'paint') requestAnimationFrame(fitZoom);
     if (name === 'puzzle') requestAnimationFrame(layoutPuzzle);
   }
@@ -1178,17 +1270,178 @@
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
     return c;
   }
+  // Quarter turn clockwise
+  function rotate90(src) {
+    const c = mk(src.height, src.width), x = c.getContext('2d');
+    x.translate(c.width, 0); x.rotate(Math.PI / 2);
+    x.drawImage(src, 0, 0);
+    return c;
+  }
+  $('#rotateBtn').onclick = () => {
+    if (!current || current.aiBusy) return;
+    for (const k of ['src', 'small', 'ai', 'aiSmall']) if (current[k]) current[k] = rotate90(current[k]);
+    current.crop = null;
+    refreshPreview();
+  };
+  const dlgMode = () => dlg.querySelector('input[name=mode]:checked').value;
   function refreshPreview() {
     if (previewPending) return;
     previewPending = true;
     requestAnimationFrame(() => {
       previewPending = false;
       if (!current) return;
-      const mode = dlg.querySelector('input[name=mode]:checked').value;
-      current.preview = convert(current.small, mode, +$('#thr').value, 1000);
+      const mode = dlgMode();
+      if (mode === 'ai' && !current.ai) {          // show the photo while the AI works
+        current.preview = current.small;
+        drawPreview();
+        if (!current.aiBusy) makeAiDrawing();
+        return;
+      }
+      current.preview = mode === 'ai'
+        ? convert(current.aiSmall, 'line', +$('#thr').value, 1000)
+        : convert(current.small, mode, +$('#thr').value, 1000);
       drawPreview();
     });
   }
+
+  // ---------- AI: photo -> coloring page (Gemini image model, user's own key) ----------
+  const AI_PROMPT = 'Turn this photo into a coloring book page for young children (ages 3 to 5). ' +
+    'Use bold, clean, continuous black outlines on a pure white background, in a simple, cute cartoon style. ' +
+    'Draw large, closed shapes that are easy to color with a paint bucket. ' +
+    'No shading, no gray, no color fills, no textures, no hatching, no text, no border or frame. ' +
+    'Keep the main subject recognizable, friendly and centered, keep the same pose and composition, ' +
+    'and simplify the background to a few simple shapes or remove it.';
+  const aiKey = () => lsGet('colorear.geminiKey') || '';
+  const aiModel = () => lsGet('colorear.geminiModel') || 'gemini-nano-banana-2.1';
+  // Finds the generated image anywhere in the response (the API nests it in steps/content blocks)
+  function findImage(o) {
+    let hit = null;
+    (function walk(v) {
+      if (!v || typeof v !== 'object') return;
+      const inl = v.inlineData || v.inline_data;
+      if (inl?.data) hit = { data: inl.data, mime: inl.mimeType || inl.mime_type || 'image/png' };
+      else if (typeof v.data === 'string' && v.data.length > 1000 && (v.type === 'image' || /^image\//.test(v.mime_type || v.mimeType || '')))
+        hit = { data: v.data, mime: v.mime_type || v.mimeType || 'image/png' };
+      for (const k in v) walk(v[k]);
+    })(o);
+    return hit;
+  }
+  async function aiColoringPage(canvas) {
+    const send = shrink(canvas, 1024);
+    const b64 = send.toDataURL('image/jpeg', .9).split(',')[1];
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': aiKey() },
+      body: JSON.stringify({
+        model: aiModel(),
+        input: [{ type: 'text', text: AI_PROMPT }, { type: 'image', mime_type: 'image/jpeg', data: b64 }],
+        response_format: { type: 'image', mime_type: 'image/png', aspect_ratio: send.width >= send.height ? '4:3' : '3:4', image_size: '1K' },
+      }),
+    });
+    let j = await r.json().catch(() => ({}));
+    if (Array.isArray(j)) j = j[0] || {};
+    if (!r.ok) throw new Error(j.error?.message || `Error ${r.status}`);
+    const img = findImage(j);
+    if (!img) throw new Error('La IA no devolvió una imagen. Prueba otra vez o con otra foto.');
+    return loadImg(`data:${img.mime};base64,${img.data}`);
+  }
+  // Grown-up check before anything is sent to the AI: answer a random multiplication
+  function adultGate() {
+    return new Promise(res => {
+      const d = $('#gateDlg'), a = 3 + (Math.random() * 7 | 0), b = 6 + (Math.random() * 4 | 0);
+      let tries = 0;
+      $('#gateQ').textContent = `${a} × ${b} = ?`;
+      $('#gateA').value = '';
+      $('#gateMsg').textContent = '';
+      const done = ok => { d.close(); res(ok); };
+      $('#gateNo').onclick = () => done(false);
+      d.oncancel = e => { e.preventDefault(); done(false); };        // Esc
+      $('#gateForm').onsubmit = e => {
+        e.preventDefault();
+        if (+$('#gateA').value === a * b) return done(true);
+        if (++tries >= 3) return done(false);
+        $('#gateMsg').textContent = 'Esa no es la respuesta. Intenta otra vez.';
+        $('#gateA').value = '';
+        $('#gateA').focus();
+      };
+      d.showModal();
+      $('#gateA').focus();
+    });
+  }
+  function aiStatus(msg) {
+    $('#aiStatus').hidden = !msg;
+    $('#aiStatus').textContent = msg || '';
+    $('#cropHint').hidden = !!msg;
+  }
+  async function makeAiDrawing() {
+    const job = current;
+    job.aiBusy = true;
+    $('#addOk').disabled = $('#rotateBtn').disabled = true;
+    if (!await adultGate()) {                       // not confirmed: nothing is sent
+      job.aiBusy = false;
+      $('#addOk').disabled = $('#rotateBtn').disabled = false;
+      if (current !== job) return;
+      dlg.querySelector('input[value=line]').checked = true;
+      aiStatus('');
+      refreshPreview();
+      return;
+    }
+    aiStatus('🤖 La IA está dibujando… (puede tardar unos segundos)');
+    try {
+      // send only the cropped part, if there is one
+      const { src, crop } = job;
+      const part = crop ? (() => {
+        const c = mk(Math.round(crop.w * src.width), Math.round(crop.h * src.height));
+        c.getContext('2d').drawImage(src, crop.x * src.width, crop.y * src.height, c.width, c.height, 0, 0, c.width, c.height);
+        return c;
+      })() : src;
+      const img = await aiColoringPage(part);
+      if (current !== job) return;                   // dialog was closed meanwhile
+      // upscale the 1K result so lines stay smooth at drawing size
+      const k = MAX_SIZE / Math.max(img.naturalWidth, img.naturalHeight);
+      const big = mk(Math.round(img.naturalWidth * k), Math.round(img.naturalHeight * k)), bx = big.getContext('2d');
+      bx.imageSmoothingQuality = 'high';
+      bx.drawImage(img, 0, 0, big.width, big.height);
+      job.ai = big; job.aiSmall = shrink(big, 1000); job.crop = null;
+      aiStatus('');
+    } catch (err) {
+      if (current !== job) return;
+      dlg.querySelector('input[value=line]').checked = true;
+      aiStatus('😕 No se pudo usar la IA: ' + (err.message || err));
+    } finally {
+      job.aiBusy = false;
+      $('#addOk').disabled = $('#rotateBtn').disabled = false;
+      if (current === job) refreshPreview();
+    }
+  }
+
+  // ---------- Settings (gear) ----------
+  const setDlg = $('#setDlg');
+  function showAiOption() { $('#aiOption').hidden = !aiKey(); }
+  $('#gearBtn').onclick = () => {
+    $('#apiKey').value = aiKey();
+    $('#apiModel').value = aiModel();
+    $('#apiMsg').textContent = '';
+    setDlg.showModal();
+  };
+  setDlg.addEventListener('close', () => {
+    if (setDlg.returnValue !== 'ok') return;
+    lsSet('colorear.geminiKey', $('#apiKey').value.trim());
+    lsSet('colorear.geminiModel', $('#apiModel').value);
+    showAiOption();
+  });
+  $('#apiClear').onclick = () => { $('#apiKey').value = ''; lsSet('colorear.geminiKey', ''); showAiOption(); $('#apiMsg').textContent = 'Clave borrada de este dispositivo.'; };
+  $('#apiTest').onclick = async () => {
+    const key = $('#apiKey').value.trim(), msg = $('#apiMsg');
+    if (!key) { msg.textContent = 'Primero pega la clave.'; return; }
+    msg.textContent = 'Probando…';
+    try {
+      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent($('#apiModel').value), { headers: { 'x-goog-api-key': key } });
+      let j = await r.json().catch(() => ({}));
+      if (Array.isArray(j)) j = j[0] || {};
+      msg.textContent = r.ok ? '✅ La clave funciona y el modelo está disponible.' : '❌ ' + (j.error?.message || 'Error ' + r.status);
+    } catch { msg.textContent = '❌ No hay conexión a internet.'; }
+  };
   // Paints the converted preview plus the crop box (crop is stored as 0..1 fractions)
   function drawPreview() {
     const c = current?.preview;
@@ -1251,6 +1504,8 @@
       $('#dname').value = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').slice(0, 40) || 'Mi dibujo';
       $('#thr').value = 50;
       dlg.querySelector('input[value=line]').checked = true;
+      showAiOption(); aiStatus('');
+      $('#addOk').disabled = $('#rotateBtn').disabled = false;
       refreshPreview();
       dlg.showModal();
     } catch {
@@ -1270,11 +1525,11 @@
       busy('Preparando tu dibujo…');
       await nextFrame();
       try {
-        const mode = dlg.querySelector('input[name=mode]:checked').value;
-        const { src, crop } = current;
+        const mode = dlgMode(), useAi = mode === 'ai' && current.ai;
+        const src = useAi ? current.ai : current.src, { crop } = current;
         const box = crop && { x: Math.round(crop.x * src.width), y: Math.round(crop.y * src.height),
                               w: Math.round(crop.w * src.width), h: Math.round(crop.h * src.height) };
-        const c = convert(src, mode, +$('#thr').value, MAX_SIZE, box);
+        const c = convert(src, useAi ? 'line' : mode, +$('#thr').value, MAX_SIZE, box);
         await save();
         await addDrawing(c, $('#dname').value.trim() || 'Mi dibujo');
       } finally { busy(); }
@@ -1405,6 +1660,7 @@
     [pz.cols, pz.rows] = PZ_GRIDS[pz.count];
     const n = pz.cols * pz.rows;
     pz.board = Array(n).fill(null); pz.sel = null;
+    clearDrag();
     $('#pzWin').hidden = true;
     pzBoard.innerHTML = '';
     pzBoard.style.gridTemplateColumns = `repeat(${pz.cols}, 1fr)`;
@@ -1541,11 +1797,24 @@
 
   // A press on a piece (tray or board) or on an empty slot. Moving turns it into a drag;
   // a plain tap selects a piece, or drops the selected piece where you tap.
+  // Only one finger drags at a time; every event is matched to that finger's pointerId,
+  // and any leftover drag copies are swept away so none can stay stuck on screen
   let pdrag = null;
+  function clearDrag() {
+    pdrag = null;
+    $$('.pz-ghost').forEach(g => g.remove());
+    $$('#puzzleScreen .lifted').forEach(p => p.classList.remove('lifted'));
+    $$('.pz-slot.over').forEach(s => s.classList.remove('over'));
+    $('.pz-side').classList.remove('over');
+  }
   function pressStart(e, i, from, slotIdx) {
     e.preventDefault();
-    pdrag = { i, from, slotIdx, x: e.clientX, y: e.clientY, ghost: null, over: null, overTray: false };
+    if (pdrag) return;                               // a second finger while dragging: ignore it
+    clearDrag();
+    pdrag = { id: e.pointerId, i, from, slotIdx, x: e.clientX, y: e.clientY, ghost: null, over: null, overTray: false };
   }
+  addEventListener('blur', clearDrag);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearDrag(); });
   pzTray.addEventListener('pointerdown', e => {
     const p = e.target.closest('.pz-piece');
     if (p && !p.classList.contains('gone')) pressStart(e, +p.dataset.i, 'tray');
@@ -1558,7 +1827,7 @@
     pressStart(e, pz.board[t], pz.board[t] == null ? null : t, t);
   });
   addEventListener('pointermove', e => {
-    if (!pdrag || pdrag.i == null) return;
+    if (!pdrag || pdrag.id !== e.pointerId || pdrag.i == null) return;
     if (!pdrag.ghost) {
       if (Math.hypot(e.clientX - pdrag.x, e.clientY - pdrag.y) < 8) return;
       const s = pzBoard.querySelector('.pz-slot').getBoundingClientRect();
@@ -1578,7 +1847,7 @@
     if (ot !== pdrag.overTray) { $('.pz-side').classList.toggle('over', ot); pdrag.overTray = ot; }
   });
   const pieceUp = e => {
-    if (!pdrag) return;
+    if (!pdrag || pdrag.id !== e.pointerId) return;
     const d = pdrag; pdrag = null;
     if (!d.ghost) {                                                       // ---- tap
       if (e.type !== 'pointerup') return;
@@ -1588,10 +1857,7 @@
       else if (d.i != null) selectPiece(sel && sel.i === d.i ? null : { i: d.i, from: d.from });
       return;
     }
-    d.ghost.remove();                                                     // ---- drop
-    srcEl(d.i, d.from)?.classList.remove('lifted');
-    d.over?.classList.remove('over');
-    $('.pz-side').classList.remove('over');
+    clearDrag();                                                          // ---- drop
     if (e.type !== 'pointerup') return;
     const slot = slotAt(e.clientX, e.clientY);
     if (slot) placeAt(d.i, d.from, slotEls().indexOf(slot));
@@ -1666,6 +1932,13 @@
   pzPrev.addEventListener('pointerup', () => pzMove = null);
   pzPrev.addEventListener('pointercancel', () => pzMove = null);
   $('#pzZoom').oninput = () => { pzCropFromZoom(); pzDraw(); };
+  $('#pzRotate').onclick = () => {
+    if (!pzCur) return;
+    pzCur.src = rotate90(pzCur.src);
+    pzCur.small = rotate90(pzCur.small);
+    pzCur.crop = null;
+    pzCropFromZoom(); pzDraw();
+  };
 
   async function pzNext() {
     const file = pzQueue.shift();
