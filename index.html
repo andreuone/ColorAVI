@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ColorAVI">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#fff0f6">
+<title>ColorAVI</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #fff0f6;
+    --panel: #ffffff;
+    --ink: #4a2b3c;
+    --muted: #b08aa0;
+    --pink: #ff5fa2;
+    --pink-dark: #d93f82;
+    --pink-soft: #ffe1ee;
+    --pink-line: #f6bcd6;
+    --sun: #fff3a8;
+    --sun-dark: #e6c94a;
+    --cur: #e53935;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Varela Round", system-ui, sans-serif;
+    background: var(--bg) radial-gradient(#ffd3e6 2px, transparent 2px) 0 0 / 26px 26px;
+    color: var(--ink);
+    height: 100dvh;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
+  svg { display: block; }
+
+  body[data-screen="home"] #paintScreen, body[data-screen="paint"] #home { display: none; }
+
+  /* ---------- Home ---------- */
+  #home {
+    position: fixed; inset: 0; overflow-y: auto;
+    padding: max(24px, env(safe-area-inset-top)) 24px 40px;
+  }
+  .logo { text-align: center; margin: 4px 0 24px; }
+  .logo h1 {
+    margin: 0; font-size: clamp(44px, 9vw, 72px); font-weight: 900; letter-spacing: -1px;
+    color: var(--pink); text-shadow: 0 5px 0 var(--pink-line);
+  }
+  .logo h1 span { color: #8c6cff; text-shadow: 0 5px 0 #d6cbff; }
+  .logo p { margin: 6px 0 0; font-size: 20px; font-weight: 800; color: var(--muted); }
+  #grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 22px;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .dcard {
+    position: relative; background: var(--panel); border-radius: 26px; padding: 10px 10px 8px;
+    box-shadow: 0 6px 0 var(--pink-line), 0 10px 22px #d93f8222; text-align: center;
+    transition: transform .12s;
+  }
+  .dcard:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--pink-line); }
+  .dcard img { width: 100%; aspect-ratio: 4/3; object-fit: contain; border-radius: 18px; background: #fff; display: block; }
+  .dcard .name { display: block; margin-top: 6px; font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dcard .del {
+    position: absolute; top: -10px; right: -10px; width: 40px; height: 40px; border-radius: 50%;
+    background: #fff; color: var(--pink-dark); font-size: 18px; font-weight: 900;
+    box-shadow: 0 3px 0 var(--pink-line), 0 4px 10px #0002; display: grid; place-items: center;
+  }
+  .dcard.add {
+    border: 4px dashed var(--pink); background: var(--pink-soft); color: var(--pink-dark);
+    display: grid; place-items: center; align-content: center; gap: 4px; min-height: 180px;
+    font-size: 20px; font-weight: 900;
+  }
+  .dcard.add big { font-size: 56px; line-height: 1; }
+
+  /* ---------- Paint screen ---------- */
+  #paintScreen {
+    position: fixed; inset: 0;
+    display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr);
+    padding-top: env(safe-area-inset-top);
+  }
+  /* Bars are laid out for an iPad (1080×810) and scaled as a whole via --ui, so they never wrap */
+  .topbar, .bottombar { zoom: var(--ui, 1); }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; flex-wrap: nowrap; }
+  .group { display: flex; align-items: center; gap: 12px; }
+  .rbtn {
+    width: 60px; height: 60px; border-radius: 50%; background: #fff; display: grid; place-items: center;
+    box-shadow: 0 5px 0 var(--pink-line), 0 7px 14px #d93f8222; transition: transform .1s, box-shadow .1s;
+  }
+  .rbtn svg { width: 38px; height: 38px; }
+  .rbtn.pink { background: var(--pink); box-shadow: 0 5px 0 var(--pink-dark), 0 7px 14px #d93f8233; }
+  .rbtn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 var(--pink-line); }
+  .rbtn:disabled { opacity: .4; cursor: default; }
+  .rbtn.on { background: var(--sun); box-shadow: 0 5px 0 var(--sun-dark), 0 7px 14px #d93f8222; }
+  .zoom {
+    display: flex; align-items: center; gap: 6px; background: #fff; border-radius: 999px; padding: 6px;
+    box-shadow: 0 5px 0 var(--pink-line), 0 7px 14px #d93f8222;
+  }
+  .zbtn { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; background: var(--pink-soft); }
+  .zbtn svg { width: 32px; height: 32px; }
+  .zbtn:active { background: var(--pink-line); }
+  .zbtn.on { background: var(--pink); }
+  .zbtn.on svg path { fill: #fff; stroke: var(--pink-dark); }
+
+  .stage { position: relative; min-height: 0; }
+  #viewport { position: absolute; inset: 0; overflow: auto; display: flex; touch-action: none; scrollbar-width: none; }
+  #viewport::-webkit-scrollbar { display: none; }
+  #viewport.pan { cursor: grab; }
+  #board { position: relative; margin: auto; flex: none; background: #fff; border-radius: 6px; box-shadow: 0 6px 30px #d93f8222; }
+  #board canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .arrow {
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+    width: 54px; height: 70px; border-radius: 20px; background: #fffc;
+    display: grid; place-items: center; box-shadow: 0 4px 0 var(--pink-line);
+  }
+  .arrow svg { width: 34px; height: 34px; }
+  .arrow.prev { left: 8px; } .arrow.next { right: 8px; }
+  .arrow:active { transform: translateY(-50%) scale(.92); }
+
+  .bottombar {
+    display: flex; align-items: flex-end; gap: 14px;
+    padding: 12px 12px 0 max(12px, env(safe-area-inset-left));
+    background: linear-gradient(#ff9fcb, #ff78b4);
+    border-top: 6px solid #ffc6e0;
+  }
+  .tools {
+    display: grid; grid-template-columns: repeat(3, 66px); gap: 12px 10px; flex: none;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .tile {
+    width: 66px; height: 66px; border-radius: 20px; background: #fff; display: grid; place-items: center;
+    box-shadow: 0 5px 0 #e2679f, 0 7px 12px #0002; transition: transform .12s, background .12s;
+  }
+  .tile svg { width: 48px; height: 48px; }
+  .tile.on { background: var(--sun); box-shadow: 0 5px 0 var(--sun-dark), 0 7px 12px #0002; transform: translateY(-3px); }
+  .tile:active { transform: translateY(3px); }
+  .crayons {
+    flex: 1; min-width: 0; height: 172px; display: flex; align-items: flex-end; gap: 10px;
+    overflow-x: auto; overflow-y: hidden; padding: 0 10px; scrollbar-width: none;
+    touch-action: pan-x; -webkit-overflow-scrolling: touch; cursor: grab;
+  }
+  .crayons.dragging { cursor: grabbing; }
+  .crayons::-webkit-scrollbar { display: none; }
+  .crayon { flex: none; width: 70px; height: 172px; position: relative; }
+  .crayon svg { width: 70px; height: 164px; transform: translateY(46px); transition: transform .18s cubic-bezier(.3,1.6,.5,1); pointer-events: none; }
+  .crayon.on svg { transform: translateY(8px); }
+
+  /* ---------- Dialogs ---------- */
+  dialog {
+    border: 0; border-radius: 30px; padding: 22px; max-width: min(580px, 94vw); width: 100%;
+    color: var(--ink); font-family: inherit; box-shadow: 0 8px 0 var(--pink-line), 0 20px 50px #0003;
+  }
+  dialog::backdrop { background: #4a2b3c77; }
+  dialog h2 { margin: 0 0 12px; font-weight: 900; }
+  .row { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .btn {
+    padding: 12px 24px; border-radius: 18px; font-weight: 900; font-size: 18px; background: var(--pink-soft);
+    box-shadow: 0 4px 0 var(--pink-line);
+  }
+  .btn.primary { background: var(--pink); color: #fff; box-shadow: 0 4px 0 var(--pink-dark); }
+  .btn:active { transform: translateY(3px); box-shadow: none; }
+
+  #prev {
+    display: block; margin: 0 auto; width: auto; height: auto; max-width: 100%; max-height: 40vh;
+    background: #fff; border: 3px solid var(--pink-line); border-radius: 16px; touch-action: none; cursor: crosshair;
+  }
+  .crop-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; min-height: 40px; font-size: 15px; color: var(--muted); font-weight: 800; }
+  .crop-bar .btn { padding: 6px 14px; font-size: 14px; }
+  .seg { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  .seg label { flex: 1; padding: 10px; border-radius: 16px; background: var(--pink-soft); font-weight: 900; cursor: pointer; text-align: center; min-width: 150px; }
+  .seg input { display: none; }
+  .seg label:has(input:checked) { background: var(--pink); color: #fff; }
+  .field { display: grid; gap: 6px; margin: 10px 0; font-weight: 900; font-size: 15px; }
+  .field input[type=text] { font: inherit; font-weight: 700; padding: 10px 14px; border-radius: 16px; border: 3px solid var(--pink-line); }
+  .field input[type=range] { accent-color: var(--pink); }
+
+  #colorDlg { max-width: min(640px, 96vw); }
+  .pick-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .pick-head h2 { margin: 0; }
+  .xbtn { width: 46px; height: 46px; border-radius: 50%; background: var(--pink-soft); font-size: 22px; font-weight: 900; color: var(--pink-dark); }
+  #cgrid { display: grid; grid-template-columns: repeat(12, 1fr); border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 3px var(--pink-soft); }
+  #cgrid button { aspect-ratio: 1; }
+  #cgrid button.on { box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 7px var(--ink); }
+  .pick-foot { display: flex; align-items: center; gap: 18px; margin-top: 18px; }
+  #curBig { width: 76px; height: 76px; border-radius: 20px; flex: none; box-shadow: inset 0 0 0 2px #0001; }
+  .pick-foot small { display: block; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
+  #recent { display: flex; gap: 10px; flex-wrap: wrap; min-height: 46px; }
+  #recent button { width: 46px; height: 46px; border-radius: 50%; box-shadow: inset 0 0 0 2px #0001; }
+
+  #drop { position: fixed; inset: 0; background: #ff5fa2cc; color: #fff; font-size: 40px; font-weight: 900;
+    display: none; place-items: center; z-index: 10; pointer-events: none; }
+  body.dragging #drop { display: grid; }
+  #busy {
+    position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 20;
+    background: var(--ink); color: #fff; padding: 12px 24px 12px 52px; border-radius: 999px;
+    font-weight: 800; display: none; box-shadow: 0 6px 24px #0003;
+  }
+  #busy::before {
+    content: ""; position: absolute; left: 18px; top: 50%; width: 20px; height: 20px; margin-top: -10px;
+    border: 3px solid #fff5; border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  body.busy #busy { display: block; }
+
+  #printImg { display: none; }
+  @media print {
+    @page { margin: 10mm; }
+    body { background: #fff; height: auto; overflow: visible; }
+    body > *:not(#printImg) { display: none !important; }
+    #printImg { display: block; width: 100%; height: auto; }
+  }
+
+</style>
+</head>
+<body data-screen="home">
+
+<!-- ================= HOME ================= -->
+<section id="home">
+  <div class="logo"><h1>Color<span>AVI</span></h1><p>¿Qué quieres pintar hoy?</p></div>
+  <div id="grid">
+    <button class="dcard add" id="addBtn"><big>＋</big>Subir dibujo</button>
+  </div>
+</section>
+
+<!-- ================= PAINT ================= -->
+<section id="paintScreen">
+  <div class="topbar">
+    <div class="group">
+      <button class="rbtn pink" id="homeBtn" title="Mis dibujos">
+        <svg viewBox="0 0 64 64"><path d="M10 31 32 12l22 19" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 29v21a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3V29L32 16z" fill="#fff"/><rect x="27" y="38" width="10" height="15" rx="3" fill="#ff5fa2"/></svg>
+      </button>
+      <button class="rbtn" id="undo" title="Deshacer">
+        <svg viewBox="0 0 64 64"><path d="M24 14 11 27l13 13" fill="none" stroke="#ff5fa2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 27h24a14 14 0 0 1 0 28H28" fill="none" stroke="#ff5fa2" stroke-width="7" stroke-linecap="round"/></svg>
+      </button>
+      <button class="rbtn" id="redo" title="Rehacer">
+        <svg viewBox="0 0 64 64"><g transform="matrix(-1 0 0 1 64 0)"><path d="M24 14 11 27l13 13" fill="none" stroke="#ff5fa2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 27h24a14 14 0 0 1 0 28H28" fill="none" stroke="#ff5fa2" stroke-width="7" stroke-linecap="round"/></g></svg>
+      </button>
+      <button class="rbtn" id="sizeBtn" title="Tamaño del trazo">
+        <svg viewBox="0 0 64 64"><circle id="sizeDot" cx="32" cy="32" r="12" fill="var(--cur)" stroke="#0002" stroke-width="1"/></svg>
+      </button>
+      <button class="rbtn" id="lockBtn" title="No salirme de las líneas">
+        <svg viewBox="0 0 64 64"><path id="shackle" d="M21 30v-8a11 11 0 0 1 22 0v8" fill="none" stroke="#ff5fa2" stroke-width="7" stroke-linecap="round"/><rect x="13" y="28" width="38" height="28" rx="8" fill="#ff5fa2" id="lockBody"/><circle cx="32" cy="40" r="4" fill="#fff"/><rect x="30" y="41" width="4" height="8" rx="2" fill="#fff"/></svg>
+      </button>
+    </div>
+    <div class="zoom">
+      <button class="zbtn" id="zout" title="Alejar">
+        <svg viewBox="0 0 64 64"><circle cx="27" cy="27" r="16" fill="#fff" stroke="#d93f82" stroke-width="6"/><path d="M39 39l14 14" stroke="#d93f82" stroke-width="8" stroke-linecap="round"/><path d="M19 27h16" stroke="#d93f82" stroke-width="6" stroke-linecap="round"/></svg>
+      </button>
+      <button class="zbtn" id="zin" title="Acercar">
+        <svg viewBox="0 0 64 64"><circle cx="27" cy="27" r="16" fill="#fff" stroke="#d93f82" stroke-width="6"/><path d="M39 39l14 14" stroke="#d93f82" stroke-width="8" stroke-linecap="round"/><path d="M19 27h16M27 19v16" stroke="#d93f82" stroke-width="6" stroke-linecap="round"/></svg>
+      </button>
+      <button class="zbtn" id="zfit" title="Restablecer tamaño">
+        <svg viewBox="0 0 64 64"><path d="M12 24V12h12M40 12h12v12M52 40v12H40M24 52H12V40" fill="none" stroke="#d93f82" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="22" y="22" width="20" height="20" rx="4" fill="#ffb3d3"/></svg>
+      </button>
+      <button class="zbtn" id="panBtn" title="Mover el dibujo">
+        <svg viewBox="0 0 64 64"><path d="M19 38V18a4.5 4.5 0 0 1 9 0v12V13a4.5 4.5 0 0 1 9 0v17V16a4.5 4.5 0 0 1 9 0v15v-9a4.5 4.5 0 0 1 9 0v18c0 11-8 19-19 19h-4c-6 0-10-3-13-8l-8-12a4.5 4.5 0 0 1 7-5.5z" fill="#fff" stroke="#d93f82" stroke-width="4" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="group">
+      <button class="rbtn" id="clear" title="Borrar colores">
+        <svg viewBox="0 0 64 64"><rect x="26" y="7" width="12" height="7" rx="3" fill="#7d8a96"/><rect x="11" y="13" width="42" height="9" rx="4.5" fill="#29b45c"/><path d="M15 24h34l-3 30a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#3fd277"/><path d="M25 30v20M32 30v20M39 30v20" stroke="#29b45c" stroke-width="4" stroke-linecap="round"/></svg>
+      </button>
+      <button class="rbtn" id="print" title="Imprimir">
+        <svg viewBox="0 0 64 64"><rect x="18" y="8" width="28" height="16" rx="3" fill="#fff" stroke="#9b86ff" stroke-width="4"/><rect x="8" y="22" width="48" height="24" rx="7" fill="#9b86ff"/><rect x="18" y="38" width="28" height="18" rx="3" fill="#fff" stroke="#9b86ff" stroke-width="4"/><circle cx="47" cy="30" r="3" fill="#fff"/></svg>
+      </button>
+      <button class="rbtn" id="download" title="Guardar en Fotos">
+        <svg viewBox="0 0 64 64"><rect x="6" y="16" width="52" height="38" rx="9" fill="#ffd23c"/><rect x="18" y="10" width="16" height="9" rx="3" fill="#ffd23c"/><rect x="6" y="24" width="52" height="8" fill="#3aa0ff"/><circle cx="32" cy="36" r="13" fill="#fff"/><circle cx="32" cy="36" r="8" fill="#3aa0ff"/><circle cx="29" cy="33" r="2.5" fill="#fff"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div id="viewport">
+      <div id="board">
+        <canvas id="paint"></canvas>
+        <canvas id="live"></canvas>
+        <canvas id="lines"></canvas>
+      </div>
+    </div>
+    <button class="arrow prev" id="prevBtn" title="Dibujo anterior"><svg viewBox="0 0 64 64"><path d="M40 12 20 32l20 20" fill="none" stroke="#a46bff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="arrow next" id="nextBtn" title="Dibujo siguiente"><svg viewBox="0 0 64 64"><path d="M24 12l20 20-20 20" fill="none" stroke="#a46bff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+
+  <div class="bottombar">
+    <div class="tools">
+      <button class="tile on" data-tool="fill" title="Rellenar">
+        <svg viewBox="0 0 64 64"><path d="M17 23Q32 2 47 23" fill="none" stroke="#6f7f8f" stroke-width="3.5"/><path d="M14 23h36l-4 29a5 5 0 0 1-5 4H23a5 5 0 0 1-5-4z" fill="#9fb2c4"/><ellipse cx="32" cy="23" rx="18" ry="6" fill="var(--cur)"/><path d="M49 24q7 9 2 20" fill="none" stroke="var(--cur)" stroke-width="6" stroke-linecap="round"/><circle cx="51" cy="50" r="4" fill="var(--cur)"/></svg>
+      </button>
+      <button class="tile" data-tool="crayon" title="Crayón">
+        <svg viewBox="0 0 64 64"><g transform="rotate(40 32 32)"><path d="M25 14 32 2l7 12z" fill="var(--cur)"/><rect x="25" y="14" width="14" height="46" rx="3" fill="var(--cur)"/><rect x="25" y="26" width="14" height="14" fill="#fff" opacity=".85"/><rect x="25" y="29" width="14" height="2.5" fill="var(--cur)"/><rect x="25" y="35" width="14" height="2.5" fill="var(--cur)"/></g></svg>
+      </button>
+      <button class="tile" data-tool="marker" title="Plumón">
+        <svg viewBox="0 0 64 64"><g transform="rotate(40 32 32)"><path d="M27 13 32 3l5 10z" fill="var(--cur)"/><rect x="24" y="13" width="16" height="30" rx="4" fill="#fff" stroke="#d6c4cf" stroke-width="2"/><rect x="24" y="40" width="16" height="20" rx="4" fill="var(--cur)"/></g></svg>
+      </button>
+      <button class="tile" data-tool="glitter" title="Brillantina">
+        <svg viewBox="0 0 64 64"><rect x="25" y="6" width="14" height="14" rx="3" fill="#fff" stroke="#d6c4cf" stroke-width="2"/><rect x="16" y="18" width="32" height="40" rx="10" fill="var(--cur)"/><g fill="#fff"><circle cx="25" cy="30" r="2.2"/><circle cx="36" cy="38" r="2.6"/><circle cx="28" cy="47" r="1.8"/><circle cx="40" cy="27" r="1.6"/><circle cx="38" cy="50" r="1.8"/></g><path d="M52 10l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#ffd23c"/></svg>
+      </button>
+      <button class="tile" data-tool="roller" title="Rodillo de figuras">
+        <svg viewBox="0 0 64 64"><rect x="6" y="8" width="42" height="22" rx="11" fill="var(--cur)"/><g fill="#fff"><path d="M17 14l1.6 3.4 3.7.4-2.8 2.5.8 3.7-3.3-1.9-3.3 1.9.8-3.7-2.8-2.5 3.7-.4z"/><circle cx="29" cy="19" r="3"/><path d="M40 14l1.6 3.4 3.7.4-2.8 2.5.8 3.7-3.3-1.9-3.3 1.9.8-3.7-2.8-2.5 3.7-.4z"/></g><path d="M48 19h7v15H32v8" fill="none" stroke="#8c7a86" stroke-width="4" stroke-linejoin="round"/><rect x="27" y="41" width="10" height="19" rx="4" fill="#ffb84d"/></svg>
+      </button>
+      <button class="tile" data-tool="eraser" title="Goma">
+        <svg viewBox="0 0 64 64"><g transform="rotate(-35 32 32)"><rect x="8" y="20" width="48" height="24" rx="6" fill="#ff9dc0"/><rect x="8" y="20" width="18" height="24" rx="6" fill="#7cc8f2"/><rect x="20" y="20" width="6" height="24" fill="#7cc8f2"/></g></svg>
+      </button>
+    </div>
+    <div class="crayons" id="crayons"></div>
+  </div>
+</section>
+
+<!-- ================= DIALOGS ================= -->
+<dialog id="addDlg">
+  <form method="dialog">
+    <h2>Nuevo dibujo</h2>
+    <canvas id="prev"></canvas>
+    <div class="crop-bar">
+      <span id="cropHint">✂️ Arrastra sobre la imagen para recortar</span>
+      <button type="button" class="btn" id="cropReset" hidden>Usar toda la imagen</button>
+    </div>
+    <div class="seg">
+      <label><input type="radio" name="mode" value="line" checked>✏️ Dibujo para colorear</label>
+      <label><input type="radio" name="mode" value="photo">📷 Foto → dibujo</label>
+    </div>
+    <label class="field">Intensidad de las líneas
+      <input type="range" id="thr" min="0" max="100" value="50">
+    </label>
+    <label class="field">Nombre
+      <input type="text" id="dname" maxlength="40">
+    </label>
+    <div class="row">
+      <button class="btn" value="cancel">Cancelar</button>
+      <button class="btn primary" value="ok">¡Agregar!</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="askDlg">
+  <form method="dialog">
+    <h2 id="askMsg"></h2>
+    <div class="row">
+      <button class="btn" value="no">No</button>
+      <button class="btn primary" value="yes">Sí</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="colorDlg">
+  <div class="pick-head">
+    <h2>🎨 Elige un color</h2>
+    <button class="xbtn" id="pickClose" title="Cerrar">✕</button>
+  </div>
+  <div id="cgrid"></div>
+  <div class="pick-foot">
+    <div id="curBig"></div>
+    <div><small>Últimos colores</small><div id="recent"></div></div>
+  </div>
+</dialog>
+
+<input type="file" id="file" accept="image/*" multiple hidden>
+<div id="drop">Suelta aquí tu imagen 🖼️</div>
+<div id="busy"></div>
+<img id="printImg" alt="">
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const mk = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+  const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  // In-app yes/no dialog (native confirm() is blocked in some embedded browsers)
+  const ask = msg => new Promise(res => {
+    const d = $('#askDlg');
+    $('#askMsg').textContent = msg;
+    d.returnValue = '';
+    d.addEventListener('close', () => res(d.returnValue === 'yes'), { once: true });
+    d.showModal();
+  });
+
+  const CRAYONS = ['#e53935','#fb8c00','#fdd835','#7cb342','#2e7d32','#4fc3f7','#1e88e5','#7e57c2',
+                   '#ec407a','#ff9cc8','#f6c9a8','#8d6e63','#9e9e9e','#212121','#ffffff'];
+  const SIZES = [10, 22, 44];          // stroke width per 1000 px of drawing width
+
+  const state = { id: null, w: 0, h: 0, tool: 'fill', color: '#e53935', size: 1, stayIn: true, pan: false, zoom: 1, fit: 1 };
+  let order = [];                      // drawing ids, oldest first (for the arrows)
+  const viewport = $('#viewport'), board = $('#board');
+  const paint = $('#paint'), live = $('#live'), lines = $('#lines');
+  const pctx = paint.getContext('2d', { willReadFrequently: true });
+  const lctx = live.getContext('2d');
+  const linesCtx = lines.getContext('2d', { willReadFrequently: true });
+  let wall = null;                 // Uint8Array: 1 = line pixel (barrier for fills)
+  let undoStack = [], redoStack = [];
+  const UNDO_MAX = 6;      // up to ~12 MB per step at 2048 px; kept low for iPads with little memory
+  const MAX_SIZE = 2048;   // longest side of a drawing, in pixels
+
+  // ---------- IndexedDB ----------
+  let db, mem = null;   // mem: in-memory fallback when IndexedDB is unavailable
+  const reqP = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const store = mode => db.transaction('dibujos', mode).objectStore('dibujos');
+  async function openDB() {
+    try {
+      const r = indexedDB.open('colorear', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('dibujos', { keyPath: 'id' });
+      db = await reqP(r);
+    } catch { mem = new Map(); }
+  }
+  const getAll = async () => mem ? [...mem.values()] : reqP(store('readonly').getAll());
+  const getRec = async id => mem ? mem.get(id) : reqP(store('readonly').get(id));
+  const putRec = async rec => mem ? mem.set(rec.id, rec) : reqP(store('readwrite').put(rec));
+  const delRec = async id => mem ? mem.delete(id) : reqP(store('readwrite').delete(id));
+
+  const toBlob = c => new Promise(r => c.toBlob(r, 'image/png'));
+  const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+
+  // ---------- Image -> line art ----------
+  // In-place box blur on a grayscale buffer (ctx.filter is missing on older iPadOS)
+  function boxBlur(g, w, h, r) {
+    const tmp = new Float32Array(g.length), d = 2 * r + 1;
+    for (let y = 0; y < h; y++) {
+      const o = y * w;
+      let s = 0;
+      for (let x = -r; x <= r; x++) s += g[o + Math.min(w - 1, Math.max(0, x))];
+      for (let x = 0; x < w; x++) {
+        tmp[o + x] = s / d;
+        s += g[o + Math.min(w - 1, x + r + 1)] - g[o + Math.max(0, x - r)];
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let y = -r; y <= r; y++) s += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
+      for (let y = 0; y < h; y++) {
+        g[y * w + x] = s / d;
+        s += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+      }
+    }
+  }
+
+  // Returns a canvas where lines are dark with alpha and everything else is transparent.
+  // crop (optional) is a rectangle in source pixels.
+  function convert(img, mode, t, max, crop) {
+    const cr = crop || { x: 0, y: 0, w: img.naturalWidth || img.width, h: img.naturalHeight || img.height };
+    const k = Math.min(1, max / Math.max(cr.w, cr.h));
+    const w = Math.max(1, Math.round(cr.w * k)), h = Math.max(1, Math.round(cr.h * k));
+    const c = mk(w, h), x = c.getContext('2d', { willReadFrequently: true });
+    x.fillStyle = '#fff'; x.fillRect(0, 0, w, h);
+    x.drawImage(img, cr.x, cr.y, cr.w, cr.h, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h), p = d.data, n = w * h;
+    const g = new Float32Array(n);
+    for (let i = 0; i < n; i++) g[i] = .299 * p[i * 4] + .587 * p[i * 4 + 1] + .114 * p[i * 4 + 2];
+    const out = x.createImageData(w, h), o = out.data;
+    if (mode === 'photo') {
+      const r = Math.max(1, Math.round(w / 500));
+      boxBlur(g, w, h, r); boxBlur(g, w, h, r);
+      const M = new Float32Array(n);
+      let top = 0;
+      for (let y = 1; y < h - 1; y++) for (let xx = 1; xx < w - 1; xx++) {
+        const i = y * w + xx;
+        const gx = -g[i-w-1] - 2*g[i-1] - g[i+w-1] + g[i-w+1] + 2*g[i+1] + g[i+w+1];
+        const gy = -g[i-w-1] - 2*g[i-w] - g[i-w+1] + g[i+w-1] + 2*g[i+w] + g[i+w+1];
+        const m = M[i] = Math.hypot(gx, gy);
+        if (m > top) top = m;
+      }
+      // Auto threshold: keep the strongest edges (2%–12% of pixels, set by the slider),
+      // so soft-contrast photos still get outlines
+      const BINS = 2048, hist = new Uint32Array(BINS), scale = (BINS - 1) / (top || 1);
+      for (let i = 0; i < n; i++) hist[(M[i] * scale) | 0]++;
+      let want = n * (.02 + t / 100 * .10), b = BINS - 1;
+      while (b > 0 && (want -= hist[b]) > 0) b--;
+      const thr = Math.max(4, b / scale);
+      for (let i = 0; i < n; i++) o[i * 4 + 3] = Math.max(0, Math.min(255, (M[i] - thr) / (thr * .4 + 2) * 255));
+      // Drop tiny specks (photo grain): connected bits smaller than ~0.005% of the image
+      const minPx = Math.max(12, n / 20000), seen = new Uint8Array(n), stack = new Int32Array(n), comp = [];
+      for (let s = 0; s < n; s++) {
+        if (seen[s] || !o[s * 4 + 3]) continue;
+        let sp = 0; stack[sp++] = s; seen[s] = 1; comp.length = 0;
+        while (sp) {
+          const i = stack[--sp], cx = i % w;
+          comp.push(i);
+          for (const j of [cx > 0 ? i - 1 : -1, cx < w - 1 ? i + 1 : -1, i - w, i + w]) {
+            if (j >= 0 && j < n && !seen[j] && o[j * 4 + 3]) { seen[j] = 1; stack[sp++] = j; }
+          }
+        }
+        if (comp.length < minPx) for (const i of comp) o[i * 4 + 3] = 0;
+      }
+    } else {
+      const hi = 150 + t, lo = hi - 110;
+      for (let i = 0; i < n; i++) o[i * 4 + 3] = Math.max(0, Math.min(255, (hi - g[i]) / (hi - lo) * 255));
+    }
+    for (let i = 0; i < n; i++) { o[i*4] = 34; o[i*4+1] = 30; o[i*4+2] = 46; }
+    x.putImageData(out, 0, 0);
+    return c;
+  }
+
+  // ---------- Drawing load / save ----------
+  function composite(scale = 1) {
+    const c = mk(Math.round(state.w * scale), Math.round(state.h * scale)), x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.drawImage(paint, 0, 0, c.width, c.height);
+    x.drawImage(lines, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  function showScreen(name) {
+    document.body.dataset.screen = name;
+    if (name === 'paint') requestAnimationFrame(fitZoom);
+  }
+
+  async function openDrawing(id) {
+    const rec = await getRec(id);
+    if (!rec) return;
+    state.id = id; state.w = rec.w; state.h = rec.h;
+    for (const c of [paint, live, lines]) { c.width = rec.w; c.height = rec.h; }
+    const li = await loadImg(URL.createObjectURL(rec.line));
+    linesCtx.drawImage(li, 0, 0);
+    if (rec.paint) pctx.drawImage(await loadImg(URL.createObjectURL(rec.paint)), 0, 0);
+    const a = linesCtx.getImageData(0, 0, rec.w, rec.h).data;
+    wall = new Uint8Array(rec.w * rec.h);
+    for (let i = 0; i < wall.length; i++) wall[i] = a[i * 4 + 3] > 110 ? 1 : 0;
+    undoStack = []; redoStack = []; updateUndo();
+    lsSet('colorear.last', id);
+    showScreen('paint');
+  }
+
+  let saveTimer;
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 700);
+  }
+  async function save() {
+    clearTimeout(saveTimer);
+    if (!state.id) return;
+    const rec = await getRec(state.id);
+    if (!rec) return;
+    rec.paint = await toBlob(paint);
+    rec.thumb = composite(320 / state.w).toDataURL('image/jpeg', .85);
+    await putRec(rec);
+  }
+
+  async function addDrawing(lineCanvas, name, open = true) {
+    const id = 'd' + Date.now() + Math.random().toString(36).slice(2, 6);
+    const th = mk(320, Math.round(320 * lineCanvas.height / lineCanvas.width)), tx = th.getContext('2d');
+    tx.fillStyle = '#fff'; tx.fillRect(0, 0, th.width, th.height);
+    tx.drawImage(lineCanvas, 0, 0, th.width, th.height);
+    await putRec({ id, name, created: Date.now(), w: lineCanvas.width, h: lineCanvas.height,
+      line: await toBlob(lineCanvas), paint: null, thumb: th.toDataURL('image/jpeg', .85) });
+    await renderGallery();
+    if (open) await openDrawing(id);
+  }
+
+  async function renderGallery() {
+    const recs = (await getAll()).sort((a, b) => a.created - b.created);
+    order = recs.map(r => r.id);
+    const grid = $('#grid');
+    $$('#grid .dcard[data-id]').forEach(c => c.remove());
+    for (const r of recs) {
+      const card = document.createElement('div');
+      card.className = 'dcard';
+      card.dataset.id = r.id;
+      card.innerHTML = `<img alt=""><span class="name"></span><button class="del" title="Borrar">✕</button>`;
+      card.querySelector('img').src = r.thumb;
+      card.querySelector('.name').textContent = r.name;
+      card.onclick = e => { if (!e.target.closest('.del')) openDrawing(r.id); };
+      card.querySelector('.del').onclick = async () => {
+        if (!await ask(`¿Borrar "${r.name}"?`)) return;
+        await delRec(r.id);
+        if (r.id === state.id) state.id = null;
+        const left = await renderGallery();
+        if (!left.length) await addSample();
+      };
+      grid.appendChild(card);
+    }
+    $('#prevBtn').hidden = $('#nextBtn').hidden = recs.length < 2;
+    return recs;
+  }
+
+  async function goHome() {
+    await save();
+    await renderGallery();
+    showScreen('home');
+  }
+  async function step(dir) {
+    if (order.length < 2) return;
+    await save();
+    const i = order.indexOf(state.id);
+    openDrawing(order[(i + dir + order.length) % order.length]);
+  }
+
+  // ---------- Undo ----------
+  function pushUndo() {
+    undoStack.push(pctx.getImageData(0, 0, state.w, state.h));
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
+    redoStack = [];
+    updateUndo();
+  }
+  function updateUndo() { $('#undo').disabled = !undoStack.length; $('#redo').disabled = !redoStack.length; }
+  function undo() {
+    if (!undoStack.length) return;
+    redoStack.push(pctx.getImageData(0, 0, state.w, state.h));
+    pctx.putImageData(undoStack.pop(), 0, 0);
+    updateUndo(); scheduleSave();
+  }
+  function redo() {
+    if (!redoStack.length) return;
+    undoStack.push(pctx.getImageData(0, 0, state.w, state.h));
+    pctx.putImageData(redoStack.pop(), 0, 0);
+    updateUndo(); scheduleSave();
+  }
+
+  // ---------- Regions ----------
+  // Flood-fills the line-art barrier map from (sx,sy); grows 3px under the lines so no white halo remains.
+  function region(sx, sy) {
+    const { w, h } = state, n = w * h, start = sy * w + sx;
+    if (wall[start]) return null;
+    const R = new Uint8Array(n), stack = new Int32Array(n);
+    let sp = 0; stack[sp++] = start; R[start] = 1;
+    while (sp) {
+      const i = stack[--sp], x = i % w;
+      if (x > 0 && !R[i - 1] && !wall[i - 1]) { R[i - 1] = 1; stack[sp++] = i - 1; }
+      if (x < w - 1 && !R[i + 1] && !wall[i + 1]) { R[i + 1] = 1; stack[sp++] = i + 1; }
+      if (i >= w && !R[i - w] && !wall[i - w]) { R[i - w] = 1; stack[sp++] = i - w; }
+      if (i < n - w && !R[i + w] && !wall[i + w]) { R[i + w] = 1; stack[sp++] = i + w; }
+    }
+    for (let pass = 2; pass <= 4; pass++) {
+      for (let i = 0; i < n; i++) {
+        if (R[i] !== 0 && R[i] < pass) {
+          const x = i % w;
+          if (x > 0 && !R[i - 1]) R[i - 1] = pass;
+          if (x < w - 1 && !R[i + 1]) R[i + 1] = pass;
+          if (i >= w && !R[i - w]) R[i - w] = pass;
+          if (i < n - w && !R[i + w]) R[i + w] = pass;
+        }
+      }
+    }
+    return R;
+  }
+
+  function fillAt(x, y) {
+    const R = region(x, y);
+    if (!R) return;
+    pushUndo();
+    const img = pctx.getImageData(0, 0, state.w, state.h), d = img.data;
+    const [r, g, b] = rgb(state.color);
+    for (let i = 0; i < R.length; i++) if (R[i]) { d[i*4] = r; d[i*4+1] = g; d[i*4+2] = b; d[i*4+3] = 255; }
+    pctx.putImageData(img, 0, 0);
+    scheduleSave();
+  }
+
+  function maskCanvas(R) {
+    const c = mk(state.w, state.h), x = c.getContext('2d'), img = x.createImageData(state.w, state.h);
+    for (let i = 0; i < R.length; i++) if (R[i]) img.data[i * 4 + 3] = 255;
+    x.putImageData(img, 0, 0);
+    return c;
+  }
+
+  // ---------- Brush textures ----------
+  const scaleK = () => state.w / 1000;
+  function crayonPattern(ctx, hex) {
+    const s = 48, c = mk(s, s), x = c.getContext('2d'), img = x.createImageData(s, s), [r, g, b] = rgb(hex);
+    for (let i = 0; i < s * s; i++) {
+      img.data[i*4] = r; img.data[i*4+1] = g; img.data[i*4+2] = b;
+      img.data[i*4+3] = Math.random() < .78 ? 120 + Math.random() * 135 : 0;
+    }
+    x.putImageData(img, 0, 0);
+    return ctx.createPattern(c, 'repeat');
+  }
+  function glitterPattern(ctx, hex) {
+    const s = 64, c = mk(s, s), x = c.getContext('2d'), img = x.createImageData(s, s), [r, g, b] = rgb(hex);
+    const cl = v => Math.max(0, Math.min(255, v));
+    for (let i = 0; i < s * s; i++) {
+      const v = Math.random();
+      let f = .65 + Math.random() * .6, add = (f - 1) * 70;
+      if (v < .035) { f = 1; add = 170; }          // sparkle
+      img.data[i*4] = cl(r * f + add); img.data[i*4+1] = cl(g * f + add); img.data[i*4+2] = cl(b * f + add);
+      img.data[i*4+3] = 255;
+    }
+    x.putImageData(img, 0, 0);
+    const k = Math.max(1, Math.round(scaleK()));
+    if (k === 1) return ctx.createPattern(c, 'repeat');
+    const big = mk(s * k, s * k), bx = big.getContext('2d');
+    bx.imageSmoothingEnabled = false; bx.drawImage(c, 0, 0, s * k, s * k);
+    return ctx.createPattern(big, 'repeat');
+  }
+  function star(x, cx, cy, r) {
+    x.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; x.lineTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a)); }
+    x.closePath(); x.fill();
+  }
+  function heart(x, cx, cy, r) {
+    x.beginPath(); x.moveTo(cx, cy + r * .9);
+    x.bezierCurveTo(cx - r * 1.5, cy - r * .1, cx - r * .6, cy - r * 1.2, cx, cy - r * .4);
+    x.bezierCurveTo(cx + r * .6, cy - r * 1.2, cx + r * 1.5, cy - r * .1, cx, cy + r * .9);
+    x.fill();
+  }
+  const CONFETTI = ['#ff5fa2', '#ffd23c', '#3fd277', '#3aa0ff', '#a46bff', '#ff8a3d'];
+  function rollerPattern(ctx, hex) {
+    const k = scaleK(), s = Math.round(60 * k), c = mk(s, s), x = c.getContext('2d');
+    x.globalAlpha = .3; x.fillStyle = hex; x.fillRect(0, 0, s, s); x.globalAlpha = 1;
+    const motif = ['confetti', 'star', 'heart'][Math.random() * 3 | 0];
+    const spots = [[.25, .25], [.75, .75], [.75, .25], [.25, .75]];
+    spots.forEach(([fx, fy], i) => {
+      const cx = fx * s, cy = fy * s, r = s * (i < 2 ? .16 : .09);
+      if (motif === 'confetti') { x.fillStyle = CONFETTI[(Math.random() * CONFETTI.length) | 0]; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); }
+      else { x.fillStyle = hex; (motif === 'star' ? star : heart)(x, cx, cy, r * 1.3); }
+    });
+    return ctx.createPattern(c, 'repeat');
+  }
+
+  // ---------- Strokes ----------
+  let stroke = null;   // { ctx, mask, last, eraser }
+  let rafPending = false;
+  const lineWidth = () => SIZES[state.size] * scaleK();
+
+  function startStroke(p) {
+    const eraser = state.tool === 'eraser';
+    pushUndo();
+    let mask = null;
+    if (!eraser && state.stayIn) {
+      const R = region(p.x | 0, p.y | 0);
+      if (R) mask = maskCanvas(R);
+    }
+    const target = eraser ? pctx : mk(state.w, state.h).getContext('2d');
+    target.lineCap = 'round'; target.lineJoin = 'round';
+    const lw = lineWidth();
+    if (eraser) {
+      target.globalCompositeOperation = 'destination-out'; target.strokeStyle = '#000'; target.lineWidth = lw * 1.4;
+    } else if (state.tool === 'crayon') {
+      target.strokeStyle = crayonPattern(target, state.color); target.lineWidth = lw;
+    } else if (state.tool === 'glitter') {
+      target.strokeStyle = glitterPattern(target, state.color); target.lineWidth = lw * 1.2;
+    } else if (state.tool === 'roller') {
+      target.strokeStyle = rollerPattern(target, state.color); target.lineWidth = lw * 1.8; target.lineCap = 'butt';
+    } else {
+      target.strokeStyle = state.color; target.lineWidth = lw;
+    }
+    stroke = { ctx: target, mask, last: p, eraser };
+    segment(p);
+  }
+  function segment(p) {
+    const { ctx, last } = stroke;
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x + .01, p.y); ctx.stroke();
+    stroke.last = p;
+    if (!stroke.eraser && !rafPending) { rafPending = true; requestAnimationFrame(renderLive); }
+  }
+  function renderLive() {
+    rafPending = false;
+    if (!stroke || stroke.eraser) return;
+    lctx.globalCompositeOperation = 'source-over';
+    lctx.clearRect(0, 0, state.w, state.h);
+    lctx.drawImage(stroke.ctx.canvas, 0, 0);
+    if (stroke.mask) { lctx.globalCompositeOperation = 'destination-in'; lctx.drawImage(stroke.mask, 0, 0); }
+  }
+  function endStroke(commit) {
+    if (!stroke) return;
+    if (stroke.eraser) {
+      pctx.globalCompositeOperation = 'source-over';
+      if (!commit) { pctx.putImageData(undoStack.pop(), 0, 0); updateUndo(); }
+    } else {
+      renderLive();
+      if (commit) pctx.drawImage(live, 0, 0);
+      else { undoStack.pop(); updateUndo(); }
+      lctx.clearRect(0, 0, state.w, state.h);
+    }
+    stroke = null;
+    if (commit) scheduleSave();
+  }
+
+  // ---------- Pointer handling (no pinch: a second finger just cancels the stroke) ----------
+  const pointers = new Set();
+  let pan = null;
+  function toCanvas(e) {
+    const r = lines.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * state.w / r.width, y: (e.clientY - r.top) * state.h / r.height };
+  }
+  const inside = p => p.x >= 0 && p.y >= 0 && p.x < state.w && p.y < state.h;
+
+  viewport.addEventListener('pointerdown', e => {
+    if (!state.id) return;
+    e.preventDefault();
+    try { viewport.setPointerCapture(e.pointerId); } catch {}
+    pointers.add(e.pointerId);
+    if (pointers.size > 1) { endStroke(false); pan = null; return; }
+    if (state.pan || e.button === 1) {
+      pan = { x: e.clientX, y: e.clientY, sl: viewport.scrollLeft, st: viewport.scrollTop };
+      return;
+    }
+    const p = toCanvas(e);
+    if (!inside(p)) return;
+    if (state.tool === 'fill') fillAt(p.x | 0, p.y | 0);
+    else startStroke(p);
+  });
+  viewport.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId) || pointers.size > 1) return;
+    if (pan) {
+      viewport.scrollLeft = pan.sl - (e.clientX - pan.x);
+      viewport.scrollTop = pan.st - (e.clientY - pan.y);
+    } else if (stroke) {
+      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+      for (const ev of (evs.length ? evs : [e])) segment(toCanvas(ev));
+    }
+  });
+  const up = e => {
+    if (!pointers.delete(e.pointerId)) return;
+    if (stroke) endStroke(true);
+    if (!pointers.size) pan = null;
+  };
+  viewport.addEventListener('pointerup', up);
+  viewport.addEventListener('pointercancel', up);
+
+  // ---------- Zoom (buttons only) ----------
+  function setZoom(z) {
+    z = Math.max(1, Math.min(5, z));
+    const cx = (viewport.scrollLeft + viewport.clientWidth / 2) / Math.max(1, viewport.scrollWidth);
+    const cy = (viewport.scrollTop + viewport.clientHeight / 2) / Math.max(1, viewport.scrollHeight);
+    state.zoom = z;
+    const s = state.fit * z;
+    board.style.width = state.w * s + 'px';
+    board.style.height = state.h * s + 'px';
+    viewport.scrollLeft = cx * viewport.scrollWidth - viewport.clientWidth / 2;
+    viewport.scrollTop = cy * viewport.scrollHeight - viewport.clientHeight / 2;
+    $('#zout').disabled = z <= 1;
+    if (z <= 1 && state.pan) setPan(false);
+  }
+  function fitZoom() {
+    if (!state.w || !viewport.clientWidth) return;
+    const side = order.length > 1 ? 140 : 24;
+    state.fit = Math.min((viewport.clientWidth - side) / state.w, (viewport.clientHeight - 20) / state.h);
+    setZoom(1);
+  }
+  new ResizeObserver(() => { if (state.zoom === 1) fitZoom(); }).observe(viewport);
+  function setPan(on) {
+    state.pan = on;
+    $('#panBtn').classList.toggle('on', on);
+    viewport.classList.toggle('pan', on);
+  }
+
+  // ---------- Colors ----------
+  function hslHex(h, s, l) {
+    s /= 100; l /= 100;
+    const f = n => { const k = (n + h / 30) % 12, c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(c * 255).toString(16).padStart(2, '0'); };
+    return '#' + f(0) + f(8) + f(4);
+  }
+  const GRID = [];
+  for (let c = 0; c < 12; c++) GRID.push(hslHex(0, 0, 100 - c * 100 / 11));
+  const HUES = [195, 212, 245, 272, 305, 345, 6, 22, 36, 50, 64, 100];
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 12; c++) GRID.push(hslHex(HUES[c], 88, 16 + r * 9));
+
+  let recent = [];
+  try { recent = JSON.parse(lsGet('colorear.recent') || '[]'); } catch {}
+
+  function crayonSvg(color, rainbow) {
+    const fill = rainbow ? 'url(#rb)' : color;
+    const edge = color === '#ffffff' ? ' stroke="#e5d5de" stroke-width="2"' : '';
+    return `<svg viewBox="0 0 60 140">${rainbow ? `<defs><linearGradient id="rb" x1="0" x2="1"><stop offset="0" stop-color="#ff4d4d"/><stop offset=".2" stop-color="#ffb02e"/><stop offset=".4" stop-color="#ffe63b"/><stop offset=".6" stop-color="#3fd277"/><stop offset=".8" stop-color="#3aa0ff"/><stop offset="1" stop-color="#a46bff"/></linearGradient></defs>` : ''}
+      <path d="M13 42 25 8q5-7 10 0l12 34z" fill="${fill}"${edge}/>
+      <rect x="9" y="40" width="42" height="104" rx="8" fill="${fill}"${edge}/>
+      <rect x="9" y="62" width="42" height="34" fill="#fff" opacity=".9"/>
+      <rect x="9" y="67" width="42" height="5" fill="${fill}"/><rect x="9" y="86" width="42" height="5" fill="${fill}"/>
+      <rect x="15" y="44" width="7" height="96" rx="3" fill="#fff" opacity=".3"/></svg>`;
+  }
+  function renderCrayons() {
+    const box = $('#crayons');
+    box.innerHTML = '';
+    const add = (c, rainbow) => {
+      const b = document.createElement('button');
+      b.className = 'crayon';
+      b.title = rainbow ? 'Más colores' : c;
+      if (!rainbow) b.dataset.c = c;
+      b.innerHTML = crayonSvg(c, rainbow);
+      b.onclick = () => rainbow ? openPicker() : setColor(c);
+      box.appendChild(b);
+    };
+    add('', true);
+    recent.filter(c => !CRAYONS.includes(c)).slice(0, 4).forEach(c => add(c));
+    CRAYONS.forEach(c => add(c));
+    markColor();
+  }
+  function markColor() {
+    $$('.crayon[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === state.color));
+    $$('#cgrid button').forEach(b => b.classList.toggle('on', b.dataset.c === state.color));
+    $('#curBig').style.background = state.color;
+  }
+  function setColor(c) {
+    state.color = c;
+    document.body.style.setProperty('--cur', c);
+    if (state.tool === 'eraser') selectTool('crayon');
+    markColor();
+    $('.crayon.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }
+  function rememberColor(c) {
+    recent = [c, ...recent.filter(x => x !== c)].slice(0, 8);
+    lsSet('colorear.recent', JSON.stringify(recent));
+    renderCrayons();
+  }
+
+  // Drag the crayon strip with the mouse/pen (fingers already scroll it natively);
+  // a drag that moved doesn't count as a tap on a crayon
+  {
+    const strip = $('#crayons');
+    let drag = null, moved = false;
+    strip.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'touch') return;
+      drag = { x: e.clientX, sl: strip.scrollLeft }; moved = false;
+    });
+    addEventListener('pointermove', e => {
+      if (!drag) return;
+      const dx = (e.clientX - drag.x) / uiScale;
+      if (Math.abs(dx) > 6) { moved = true; strip.classList.add('dragging'); }
+      if (moved) strip.scrollLeft = drag.sl - dx;
+    });
+    addEventListener('pointerup', () => { drag = null; strip.classList.remove('dragging'); });
+    strip.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  }
+
+  const colorDlg = $('#colorDlg');
+  function renderRecent() {
+    const box = $('#recent');
+    box.innerHTML = '';
+    for (const c of recent) {
+      const b = document.createElement('button');
+      b.style.background = c;
+      b.onclick = () => { setColor(c); colorDlg.close(); };
+      box.appendChild(b);
+    }
+  }
+  function openPicker() { renderRecent(); markColor(); colorDlg.showModal(); }
+  for (const c of GRID) {
+    const b = document.createElement('button');
+    b.style.background = c; b.dataset.c = c;
+    b.onclick = () => { setColor(c); rememberColor(c); colorDlg.close(); };
+    $('#cgrid').appendChild(b);
+  }
+  $('#pickClose').onclick = () => colorDlg.close();
+  colorDlg.addEventListener('click', e => { if (e.target === colorDlg) colorDlg.close(); });
+
+  // ---------- Tools & buttons ----------
+  function selectTool(t) {
+    state.tool = t;
+    $$('.tile[data-tool]').forEach(x => x.classList.toggle('on', x.dataset.tool === t));
+    setPan(false);
+  }
+  $$('.tile[data-tool]').forEach(b => b.onclick = () => selectTool(b.dataset.tool));
+  function showSize() { $('#sizeDot').setAttribute('r', [7, 13, 21][state.size]); }
+  $('#sizeBtn').onclick = () => { state.size = (state.size + 1) % SIZES.length; showSize(); };
+  function showLock() {
+    $('#shackle').setAttribute('d', state.stayIn ? 'M21 30v-8a11 11 0 0 1 22 0v8' : 'M21 30v-8a11 11 0 0 1 22 0v-4');
+    $('#shackle').setAttribute('transform', state.stayIn ? '' : 'translate(-10 -4) rotate(-15 21 30)');
+    const col = state.stayIn ? '#ff5fa2' : '#b9a7b2';
+    $('#shackle').setAttribute('stroke', col);
+    $('#lockBody').setAttribute('fill', col);
+    $('#lockBtn').title = state.stayIn ? 'Pintando dentro de las líneas' : 'Pintando libre';
+    $('#lockBtn').classList.toggle('on', state.stayIn);
+  }
+  $('#lockBtn').onclick = () => { state.stayIn = !state.stayIn; lsSet('colorear.stayIn', state.stayIn ? '1' : '0'); showLock(); };
+
+  $('#homeBtn').onclick = goHome;
+  $('#prevBtn').onclick = () => step(-1);
+  $('#nextBtn').onclick = () => step(1);
+  $('#undo').onclick = undo;
+  $('#redo').onclick = redo;
+  $('#zin').onclick = () => setZoom(state.zoom * 1.4);
+  $('#zout').onclick = () => setZoom(state.zoom / 1.4);
+  $('#zfit').onclick = fitZoom;
+  $('#panBtn').onclick = () => { if (state.zoom > 1) setPan(!state.pan); };
+  $('#clear').onclick = async () => {
+    if (!state.id || !await ask('¿Borrar todos los colores de este dibujo?')) return;
+    pushUndo(); pctx.clearRect(0, 0, state.w, state.h); scheduleSave();
+  };
+  $('#download').onclick = async () => {
+    if (!state.id) return;
+    const rec = await getRec(state.id);
+    const name = (rec?.name || 'dibujo') + '.png';
+    const blob = await toBlob(composite());
+    const file = new File([blob], name, { type: 'image/png' });
+    // On iPad the share sheet offers "Guardar imagen" into Fotos
+    if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); } catch {}
+      return;
+    }
+    const a = document.createElement('a');
+    a.download = name;
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  $('#print').onclick = () => {
+    if (!state.id) return;
+    const img = $('#printImg');
+    img.onload = () => { img.onload = null; window.print(); };
+    img.src = composite().toDataURL('image/png');
+  };
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input[type=text]')) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+  });
+
+  // ---------- Upload flow ----------
+  const dlg = $('#addDlg'), prev = $('#prev');
+  let queue = [], current = null, previewPending = false;
+  const nextFrame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r)));
+  function busy(msg) {
+    $('#busy').textContent = msg || '';
+    document.body.classList.toggle('busy', !!msg);
+  }
+  // Downscale once so the preview and final conversion never touch the full-size original again
+  function shrink(img, max) {
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, k = Math.min(1, max / Math.max(w, h));
+    const c = mk(Math.round(w * k), Math.round(h * k));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  }
+  function refreshPreview() {
+    if (previewPending) return;
+    previewPending = true;
+    requestAnimationFrame(() => {
+      previewPending = false;
+      if (!current) return;
+      const mode = dlg.querySelector('input[name=mode]:checked').value;
+      current.preview = convert(current.small, mode, +$('#thr').value, 1000);
+      drawPreview();
+    });
+  }
+  // Paints the converted preview plus the crop box (crop is stored as 0..1 fractions)
+  function drawPreview() {
+    const c = current?.preview;
+    if (!c) return;
+    if (prev.width !== c.width || prev.height !== c.height) { prev.width = c.width; prev.height = c.height; }
+    const x = prev.getContext('2d'), W = c.width, H = c.height;
+    x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(c, 0, 0);
+    const cr = current.crop;
+    if (cr) {
+      const rx = cr.x * W, ry = cr.y * H, rw = cr.w * W, rh = cr.h * H;
+      x.fillStyle = 'rgba(74,43,60,.5)';
+      x.beginPath(); x.rect(0, 0, W, H); x.rect(rx, ry, rw, rh); x.fill('evenodd');
+      x.strokeStyle = '#ff5fa2'; x.lineWidth = 4; x.setLineDash([12, 8]);
+      x.strokeRect(rx, ry, rw, rh); x.setLineDash([]);
+    }
+    $('#cropReset').hidden = !cr;
+    $('#cropHint').textContent = cr ? '✂️ Solo se usará lo que está dentro del recuadro' : '✂️ Arrastra sobre la imagen para recortar';
+  }
+  let cropFrom = null;
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const relPt = e => {
+    const r = prev.getBoundingClientRect();
+    return { x: clamp01((e.clientX - r.left) / r.width), y: clamp01((e.clientY - r.top) / r.height) };
+  };
+  prev.addEventListener('pointerdown', e => {
+    if (!current) return;
+    e.preventDefault();
+    try { prev.setPointerCapture(e.pointerId); } catch {}
+    cropFrom = relPt(e);
+  });
+  prev.addEventListener('pointermove', e => {
+    if (!cropFrom) return;
+    const p = relPt(e);
+    current.crop = { x: Math.min(p.x, cropFrom.x), y: Math.min(p.y, cropFrom.y), w: Math.abs(p.x - cropFrom.x), h: Math.abs(p.y - cropFrom.y) };
+    drawPreview();
+  });
+  const endCrop = () => {
+    if (!cropFrom) return;
+    cropFrom = null;
+    if (current?.crop && (current.crop.w < .05 || current.crop.h < .05)) current.crop = null;   // a tap, not a drag
+    drawPreview();
+  };
+  prev.addEventListener('pointerup', endCrop);
+  prev.addEventListener('pointercancel', endCrop);
+  $('#cropReset').onclick = () => { current.crop = null; drawPreview(); };
+
+  async function nextInQueue() {
+    const file = queue.shift();
+    if (!file) return;
+    busy('Abriendo imagen…');
+    await nextFrame();
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await loadImg(url);
+      await img.decode?.().catch(() => {});
+      current = { src: shrink(img, 4000), crop: null };   // extra resolution so a crop stays sharp
+      current.small = shrink(current.src, 1000);
+      URL.revokeObjectURL(url);
+      busy();
+      $('#dname').value = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').slice(0, 40) || 'Mi dibujo';
+      $('#thr').value = 50;
+      dlg.querySelector('input[value=line]').checked = true;
+      refreshPreview();
+      dlg.showModal();
+    } catch {
+      busy();
+      alert('No pude abrir esa imagen 😕');
+      nextInQueue();
+    }
+  }
+  function enqueue(files) {
+    queue.push(...[...files].filter(f => f.type.startsWith('image/')));
+    if (!dlg.open) nextInQueue();
+  }
+  dlg.querySelectorAll('input[name=mode]').forEach(r => r.onchange = refreshPreview);
+  $('#thr').oninput = refreshPreview;
+  dlg.addEventListener('close', async () => {
+    if (dlg.returnValue === 'ok' && current) {
+      busy('Preparando tu dibujo…');
+      await nextFrame();
+      try {
+        const mode = dlg.querySelector('input[name=mode]:checked').value;
+        const { src, crop } = current;
+        const box = crop && { x: Math.round(crop.x * src.width), y: Math.round(crop.y * src.height),
+                              w: Math.round(crop.w * src.width), h: Math.round(crop.h * src.height) };
+        const c = convert(src, mode, +$('#thr').value, MAX_SIZE, box);
+        await save();
+        await addDrawing(c, $('#dname').value.trim() || 'Mi dibujo');
+      } finally { busy(); }
+    }
+    current = null;
+    nextInQueue();
+  });
+  $('#addBtn').onclick = () => $('#file').click();
+  $('#file').onchange = e => { enqueue(e.target.files); e.target.value = ''; };
+  let dragDepth = 0;
+  addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
+  addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
+  addEventListener('dragover', e => e.preventDefault());
+  addEventListener('drop', e => {
+    e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+    enqueue(e.dataTransfer.files);
+  });
+  addEventListener('paste', e => {
+    const files = [...e.clipboardData.items].filter(i => i.kind === 'file').map(i => i.getAsFile());
+    if (files.length) enqueue(files);
+  });
+
+  // ---------- Sample drawing ----------
+  async function addSample() {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+      <g fill="none" stroke="#000" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="1020" cy="150" r="80"/>
+        ${[...Array(10)].map((_, i) => { const a = i * Math.PI / 5; return `<line x1="${1020 + 105*Math.cos(a)}" y1="${150 + 105*Math.sin(a)}" x2="${1020 + 150*Math.cos(a)}" y2="${150 + 150*Math.sin(a)}"/>`; }).join('')}
+        <path d="M120 230 q20-70 90-60 q30-60 100-30 q70-20 80 50 q50 20 20 60 h-270 q-50-10-20-20z"/>
+        <path d="M0 700 Q300 620 600 700 T1200 690"/>
+        <rect x="340" y="420" width="360" height="300"/>
+        <path d="M310 430 L520 250 L730 430 Z"/>
+        <rect x="480" y="560" width="90" height="160"/>
+        <circle cx="550" cy="645" r="7"/>
+        <rect x="380" y="480" width="80" height="70"/><line x1="420" y1="480" x2="420" y2="550"/><line x1="380" y1="515" x2="460" y2="515"/>
+        <rect x="600" y="480" width="70" height="70"/><line x1="635" y1="480" x2="635" y2="550"/><line x1="600" y1="515" x2="670" y2="515"/>
+        <rect x="610" y="300" width="50" height="80"/>
+        <line x1="900" y1="560" x2="900" y2="760"/>
+        <path d="M900 680 q50-40 80 0 q-40 30-80 0z"/>
+        ${[...Array(6)].map((_, i) => { const a = i * Math.PI / 3; return `<ellipse cx="${900 + 48*Math.cos(a)}" cy="${520 + 48*Math.sin(a)}" rx="34" ry="24" transform="rotate(${i*60} ${900 + 48*Math.cos(a)} ${520 + 48*Math.sin(a)})"/>`; }).join('')}
+        <circle cx="900" cy="520" r="28"/>
+        <path d="M120 760 q30-80 60 0 M150 760 v-60 M90 790 h120"/>
+        <path d="M1000 820 q60-50 120 0"/>
+        <path d="M60 860 h1080"/>
+      </g></svg>`;
+    const img = await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+    await addDrawing(convert(img, 'line', 50, 1200), 'Mi casita (ejemplo)', false);
+  }
+
+  // ---------- UI scale: bars are designed for a 1080×810 iPad screen ----------
+  let uiScale = 1;
+  function applyUiScale() {
+    uiScale = Math.max(.5, Math.min(1.3, Math.min(innerWidth / 1080, innerHeight / 810)));
+    document.documentElement.style.setProperty('--ui', uiScale);
+  }
+  applyUiScale();
+  addEventListener('resize', applyUiScale);
+
+  // ---------- Boot ----------
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  navigator.storage?.persist?.().catch(() => {});   // ask the browser not to evict saved drawings
+
+  (async () => {
+    state.stayIn = lsGet('colorear.stayIn') !== '0';
+    showLock(); showSize(); renderCrayons(); setColor(state.color);
+    await openDB();
+    const recs = await renderGallery();
+    if (!recs.length) await addSample();
+  })();
+})();
+</script>
+</body>
+</html>
