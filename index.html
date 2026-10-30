@@ -122,6 +122,10 @@
   .rbtn.pink { background: var(--pink); box-shadow: 0 5px 0 var(--pink-dark), 0 7px 14px #d93f8233; }
   .rbtn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 var(--pink-line); }
   .rbtn:disabled { opacity: .4; cursor: default; }
+  .rbtn[hidden] { display: none; }
+  /* Original photo of an AI drawing, faint under the colors */
+  #photoUnder { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; opacity: .4; pointer-events: none; border-radius: 6px; }
+  #photoUnder[hidden] { display: none; }
   .rbtn.on { background: var(--sun); box-shadow: 0 5px 0 var(--sun-dark), 0 7px 14px #d93f8222; }
   .zoom {
     display: flex; align-items: center; gap: 6px; background: #fff; border-radius: 999px; padding: 6px;
@@ -211,6 +215,16 @@
   #pzBoard.guide::before { opacity: .18; }
   #pzBoard.guide .pz-slot { background: transparent; }
   .pz-slot .pz-piece.lifted { opacity: .25; }
+  .pz-slot .pz-piece { pointer-events: none; }      /* touches go to the slot underneath */
+  /* Classic jigsaw pieces: transparent outside the outline, so shadows follow the shape */
+  #puzzleScreen.jig #pzBoard { gap: 0; }
+  #puzzleScreen.jig .pz-slot { border: 0; border-radius: 0; box-shadow: inset 0 0 0 1px #ffc6df; }
+  #puzzleScreen.jig .pz-slot.filled { box-shadow: none; }
+  #puzzleScreen.jig .pz-piece { box-shadow: none; border-radius: 0; filter: drop-shadow(0 3px 2px rgba(74,43,60,.3)); }
+  #puzzleScreen.jig .pz-slot .pz-piece { filter: none; }
+  #puzzleScreen.jig .pz-piece.sel { outline: none; filter: drop-shadow(0 0 3px #ff5fa2) drop-shadow(0 0 3px #ff5fa2); }
+  .pz-ghost.jig { box-shadow: none; border-radius: 0; filter: drop-shadow(0 12px 14px rgba(0,0,0,.35)); }
+  .pill { font-size: 18px; padding: 0 18px; }
   .pz-side.over { box-shadow: 0 0 0 5px var(--pink), 0 10px 24px #d93f8222; }
   .pz-slot { position: relative; border-radius: 10px; background: #fff4f9; border: 2px dashed #ffc6df; }
   .pz-slot.filled { border: 0; }
@@ -351,6 +365,7 @@
     </div>
     <div class="chips" id="pzCount"><span>🧩</span></div>
     <div class="group">
+      <button class="pill on" id="pzShapeBtn" title="Piezas con forma de ficha">🧩 Fichas</button>
       <button class="pill on" id="pzModelBtn">👀 Modelo</button>
       <button class="pill" id="pzGuideBtn">✨ Guía</button>
       <button class="rbtn" id="pzShuffle" title="Mezclar de nuevo">
@@ -397,6 +412,9 @@
       <button class="rbtn" id="lockBtn" title="No salirme de las líneas">
         <svg viewBox="0 0 64 64"><path id="shackle" d="M21 30v-8a11 11 0 0 1 22 0v8" fill="none" stroke="#ff5fa2" stroke-width="7" stroke-linecap="round"/><rect x="13" y="28" width="38" height="28" rx="8" fill="#ff5fa2" id="lockBody"/><circle cx="32" cy="40" r="4" fill="#fff"/><rect x="30" y="41" width="4" height="8" rx="2" fill="#fff"/></svg>
       </button>
+      <button class="rbtn" id="photoBtn" title="Ver la foto original debajo" hidden>
+        <svg viewBox="0 0 64 64"><rect x="7" y="12" width="50" height="40" rx="7" fill="#fff" stroke="#3aa0ff" stroke-width="5"/><circle cx="22" cy="26" r="5" fill="#ffd23c"/><path d="M11 48l14-14 9 9 7-7 12 12z" fill="#3fd277"/></svg>
+      </button>
     </div>
     <div class="zoom">
       <button class="zbtn" id="zout" title="Alejar">
@@ -428,6 +446,7 @@
   <div class="stage">
     <div id="viewport">
       <div id="board">
+        <img id="photoUnder" alt="" hidden>
         <canvas id="paint"></canvas>
         <canvas id="live"></canvas>
         <canvas id="lines"></canvas>
@@ -777,9 +796,25 @@
     wall = new Uint8Array(rec.w * rec.h);
     for (let i = 0; i < wall.length; i++) wall[i] = a[i * 4 + 3] > 110 ? 1 : 0;
     undoStack = []; redoStack = []; updateUndo();
+    setPhoto(rec.photo);
     lsSet('colorear.last', id);
     showScreen('paint');
   }
+
+  // Drawings made with AI keep their original photo; a button shows it faintly underneath
+  let photoUrl = null;
+  function setPhoto(blob) {
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+    photoUrl = blob ? URL.createObjectURL(blob) : null;
+    if (photoUrl) $('#photoUnder').src = photoUrl; else $('#photoUnder').removeAttribute('src');
+    $('#photoBtn').hidden = !blob;
+    showPhoto(false);
+  }
+  function showPhoto(on) {
+    $('#photoUnder').hidden = !on;
+    $('#photoBtn').classList.toggle('on', on);
+  }
+  $('#photoBtn').onclick = () => showPhoto($('#photoUnder').hidden);
 
   let saveTimer;
   function scheduleSave() {
@@ -796,13 +831,14 @@
     await putRec(rec);
   }
 
-  async function addDrawing(lineCanvas, name, open = true) {
+  async function addDrawing(lineCanvas, name, open = true, photo = null) {
     const id = 'd' + Date.now() + Math.random().toString(36).slice(2, 6);
     const th = mk(320, Math.round(320 * lineCanvas.height / lineCanvas.width)), tx = th.getContext('2d');
     tx.fillStyle = '#fff'; tx.fillRect(0, 0, th.width, th.height);
     tx.drawImage(lineCanvas, 0, 0, th.width, th.height);
+    const photoBlob = photo && await new Promise(r => shrink(photo, 1600).toBlob(r, 'image/jpeg', .85));
     await putRec({ id, name, created: Date.now(), w: lineCanvas.width, h: lineCanvas.height,
-      line: await toBlob(lineCanvas), paint: null, thumb: th.toDataURL('image/jpeg', .85) });
+      line: await toBlob(lineCanvas), paint: null, thumb: th.toDataURL('image/jpeg', .85), photo: photoBlob || null });
     await renderGallery();
     if (open) await openDrawing(id);
   }
@@ -1279,7 +1315,7 @@
   }
   $('#rotateBtn').onclick = () => {
     if (!current || current.aiBusy) return;
-    for (const k of ['src', 'small', 'ai', 'aiSmall']) if (current[k]) current[k] = rotate90(current[k]);
+    for (const k of ['src', 'small', 'ai', 'aiSmall', 'aiPart']) if (current[k]) current[k] = rotate90(current[k]);
     current.crop = null;
     refreshPreview();
   };
@@ -1396,6 +1432,7 @@
         return c;
       })() : src;
       const img = await aiColoringPage(part);
+      job.aiPart = part;                             // the photo the AI drew from, kept with the drawing
       if (current !== job) return;                   // dialog was closed meanwhile
       // upscale the 1K result so lines stay smooth at drawing size
       const k = MAX_SIZE / Math.max(img.naturalWidth, img.naturalHeight);
@@ -1530,8 +1567,15 @@
         const box = crop && { x: Math.round(crop.x * src.width), y: Math.round(crop.y * src.height),
                               w: Math.round(crop.w * src.width), h: Math.round(crop.h * src.height) };
         const c = convert(src, useAi ? 'line' : mode, +$('#thr').value, MAX_SIZE, box);
+        // AI drawings keep the photo they came from, cropped the same way as the drawing
+        let photo = null;
+        if (useAi && current.aiPart) {
+          const p = current.aiPart;
+          photo = crop ? mk(Math.round(crop.w * p.width), Math.round(crop.h * p.height)) : p;
+          if (crop) photo.getContext('2d').drawImage(p, crop.x * p.width, crop.y * p.height, photo.width, photo.height, 0, 0, photo.width, photo.height);
+        }
         await save();
-        await addDrawing(c, $('#dname').value.trim() || 'Mi dibujo');
+        await addDrawing(c, $('#dname').value.trim() || 'Mi dibujo', true, photo);
       } finally { busy(); }
     }
     current = null;
@@ -1628,6 +1672,7 @@
     if (pz.url) URL.revokeObjectURL(pz.url);
     pz.id = id;
     pz.url = URL.createObjectURL(rec.img);
+    pz.img = await loadImg(pz.url);
     $('#pzModel').src = pz.url;
     pzBoard.style.setProperty('--pz-img', `url(${pz.url})`);
     showModel(true);                       // the model always starts visible, the guide always off
@@ -1650,18 +1695,72 @@
   }
 
   function pieceBg(el, i) {
+    if (pz.jig) {                                   // jigsaw pieces are pre-cut images
+      el.style.backgroundImage = `url(${pz.shapes[i]})`;
+      el.style.backgroundSize = '100% 100%';
+      el.style.backgroundPosition = '0 0';
+      return;
+    }
     const c = i % pz.cols, r = Math.floor(i / pz.cols);
     el.style.backgroundImage = `url(${pz.url})`;
     el.style.backgroundSize = `${pz.cols * 100}% ${pz.rows * 100}%`;
     el.style.backgroundPosition = `${c / (pz.cols - 1) * 100}% ${r / (pz.rows - 1) * 100}%`;
   }
 
-  function newGame() {
+  // ----- classic jigsaw pieces -----
+  // One side of a piece, drawn clockwise from p0 to p1. s: 1 = tab out, -1 = hole in, 0 = flat border.
+  function jigEdge(x, [x0, y0], [x1, y1], s, S) {
+    if (!s) { x.lineTo(x1, y1); return; }
+    const len = Math.hypot(x1 - x0, y1 - y0), dx = (x1 - x0) / len, dy = (y1 - y0) / len;
+    const P = (u, v) => [x0 + dx * u * len + dy * v * S * s, y0 + dy * u * len - dx * v * S * s];
+    x.lineTo(...P(.35, 0));
+    x.bezierCurveTo(...P(.40, 0), ...P(.43, .09), ...P(.39, .15));
+    x.bezierCurveTo(...P(.33, .24), ...P(.40, .30), ...P(.50, .30));
+    x.bezierCurveTo(...P(.60, .30), ...P(.67, .24), ...P(.61, .15));
+    x.bezierCurveTo(...P(.57, .09), ...P(.60, 0), ...P(.65, 0));
+    x.lineTo(x1, y1);
+  }
+  // Cuts every piece (cell + margin m for the tabs) into its own image
+  async function buildShapes() {
+    const { cols, rows, img } = pz, n = cols * rows;
+    const cw = img.naturalWidth / cols, ch = img.naturalHeight / rows, S = Math.min(cw, ch), m = Math.ceil(S * .32);
+    pz.geom = { cw, ch, m };
+    const rnd = () => Math.random() < .5 ? 1 : -1;
+    // H[r][c]: edge above row r (+1 = the piece above has the tab); V[r][c]: edge left of column c
+    const H = Array.from({ length: rows + 1 }, (_, r) => Array.from({ length: cols }, () => r === 0 || r === rows ? 0 : rnd()));
+    const V = Array.from({ length: rows }, () => Array.from({ length: cols + 1 }, (_, c) => c === 0 || c === cols ? 0 : rnd()));
+    (pz.shapes || []).forEach(u => URL.revokeObjectURL(u));
+    pz.shapes = await Promise.all([...Array(n).keys()].map(i => {
+      const c = i % cols, r = i / cols | 0;
+      const cv = mk(Math.ceil(cw + 2 * m), Math.ceil(ch + 2 * m)), x = cv.getContext('2d');
+      const tl = [m, m], tr = [m + cw, m], br = [m + cw, m + ch], bl = [m, m + ch];
+      x.beginPath(); x.moveTo(...tl);
+      jigEdge(x, tl, tr, -H[r][c], S);
+      jigEdge(x, tr, br, V[r][c + 1], S);
+      jigEdge(x, br, bl, H[r + 1][c], S);
+      jigEdge(x, bl, tl, -V[r][c], S);
+      x.closePath();
+      x.save(); x.clip();
+      x.drawImage(img, m - c * cw, m - r * ch);
+      x.restore();
+      x.lineWidth = Math.max(2, S * .012); x.strokeStyle = 'rgba(74,43,60,.35)'; x.stroke();
+      return new Promise(res => cv.toBlob(b => res(URL.createObjectURL(b)), 'image/png'));
+    }));
+  }
+  // Size of a piece element relative to its cell (jigsaw pieces stick out for their tabs)
+  const pieceScale = () => pz.jig && pz.geom ? { w: (pz.geom.cw + 2 * pz.geom.m) / pz.geom.cw, h: (pz.geom.ch + 2 * pz.geom.m) / pz.geom.ch } : { w: 1, h: 1 };
+
+  async function newGame() {
     [pz.cols, pz.rows] = PZ_GRIDS[pz.count];
     const n = pz.cols * pz.rows;
     pz.board = Array(n).fill(null); pz.sel = null;
     clearDrag();
     $('#pzWin').hidden = true;
+    const jig = lsGet('colorear.pzShape') !== 'rect';
+    if (jig) { busy('Cortando las piezas…'); await buildShapes(); busy(); }
+    pz.jig = jig;
+    $('#puzzleScreen').classList.toggle('jig', jig);
+    $('#pzShapeBtn').classList.toggle('on', jig);
     pzBoard.innerHTML = '';
     pzBoard.style.gridTemplateColumns = `repeat(${pz.cols}, 1fr)`;
     pzBoard.style.gridTemplateRows = `repeat(${pz.rows}, 1fr)`;
@@ -1692,7 +1791,7 @@
     pzBoard.style.width = bw + 'px';
     pzBoard.style.height = bw * 3 / 4 + 'px';
     const t = pzTray.getBoundingClientRect(), gap = 10, n = pz.cols * pz.rows;
-    const aspect = (4 / pz.cols) / (3 / pz.rows);   // piece width / height
+    const sc = pieceScale(), aspect = (4 / pz.cols * sc.w) / (3 / pz.rows * sc.h);   // piece width / height
     let best = 0, bestCols = 1;
     for (let c = 1; c <= 6; c++) {
       let w = Math.min(160, (t.width - 8 - gap * (c - 1)) / c);
@@ -1719,6 +1818,7 @@
   }
   $('#pzGuideBtn').onclick = () => showGuide(!pzBoard.classList.contains('guide'));
   $('#pzShuffle').onclick = newGame;
+  $('#pzShapeBtn').onclick = () => { lsSet('colorear.pzShape', pz.jig ? 'rect' : 'jig'); newGame(); };
   $('#pzAgain').onclick = newGame;
   const pzGoHome = async () => { await renderPuzzles(); setHomeTab('puzzle'); showScreen('home'); };
   $('#pzHome').onclick = pzGoHome;
@@ -1758,6 +1858,11 @@
       const p = document.createElement('div');
       p.className = 'pz-piece'; p.dataset.i = i;
       pieceBg(p, i);
+      if (pz.jig) {                               // let the tabs reach over the neighbouring cells
+        const { cw, ch, m } = pz.geom;
+        Object.assign(p.style, { left: -m / cw * 100 + '%', top: -m / ch * 100 + '%',
+          width: (cw + 2 * m) / cw * 100 + '%', height: (ch + 2 * m) / ch * 100 + '%' });
+      }
       s.appendChild(p);
       if (t === popSlot) { void s.offsetWidth; s.classList.add('pop'); }
     });
@@ -1832,9 +1937,10 @@
       if (Math.hypot(e.clientX - pdrag.x, e.clientY - pdrag.y) < 8) return;
       const s = pzBoard.querySelector('.pz-slot').getBoundingClientRect();
       const g = pdrag.ghost = document.createElement('div');
-      g.className = 'pz-ghost';
+      g.className = 'pz-ghost' + (pz.jig ? ' jig' : '');
       pieceBg(g, pdrag.i);
-      g.style.width = s.width + 'px'; g.style.height = s.height + 'px';
+      const sc = pieceScale();
+      g.style.width = s.width * sc.w + 'px'; g.style.height = s.height * sc.h + 'px';
       document.body.appendChild(g);
       srcEl(pdrag.i, pdrag.from)?.classList.add('lifted');
       selectPiece(null);
