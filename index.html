@@ -1335,7 +1335,7 @@
       body: JSON.stringify({
         model: aiModel(),
         input: [{ type: 'text', text: AI_PROMPT }, { type: 'image', mime_type: 'image/jpeg', data: b64 }],
-        response_format: { type: 'image', mime_type: 'image/png', aspect_ratio: send.width >= send.height ? '4:3' : '3:4', image_size: '1K' },
+        response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: send.width >= send.height ? '4:3' : '3:4', image_size: '1K' },
       }),
     });
     let j = await r.json().catch(() => ({}));
